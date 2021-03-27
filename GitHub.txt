@@ -1,0 +1,41 @@
+* GitHub
+- 소스코드의 버전관리와 개발 협업을 위한 분산 버전 관리 시스템.
+- Git은 형상 관리 도구 중 하나로, 컴퓨터 파일의 변경사항을 추적하고 여러 명의 사용자들 간에 해당 파일들의 작업을 조율하기 위한 분산 버전 관리 시스템이다. (위키백과)
+- 장점: 소스코드를 따로 주고 받을 필요 없이, git을 사용하면 하나의 프로젝트, 같은 파일을 여러 사람이 동시에 작업하는 병렬 개발이 가능함.
+- Git vs. GitHub 차이점: Git은 로컬에서 버전 관리 시스템을 운영하는 방식이고 Github는 저장소를 깃허브에서 제공해주는 클라우드 서버를 이용한다는 것의 차이입니다. 따라서 다른 사람들과 협업할 경우, 오픈소스를 공유하고 다른 사람들의 의견을 듣고 싶은 경우 등은 Github를 써서 편리하게 기능을 사용할 수 있습니다.
+(형상관리 시스템이란?) https://codevang.tistory.com/217
+
+
+* 주요 용어
+- repository(저장소): 단일 프로젝트 조직에 이용됨. 프로젝트에 필요한 어떤 것이든 저장 가능. 프로젝트에 관한 정보를 올려두는 것이 좋다. (ex. Readme etc)
+- branch: Branching을 통해서 한 repository에 대한 다양한 버전의 work를 동시에 할 수 있다. master branch에서 다른 branch를 생성하여 master에 commit하기 전에 테스트하거나 수정하기 위해 사용한다. 
+- commit: 변경사항을 저장하는 행위. 각 commit에는 해당 변경 사항에 대한 간략한 설명을 담는 commit message가 있고, 이를 통해 다른 개발자들이 어떤 부분이 왜 변경되었는지 쉽게 이해할 수 있다.
+- push : 추가, 변경한 내용을 원격 저장소에 업로드하는 작업.
+- pull request: 각 branch의 변경사항을 볼 수 있다. 자신의 변경 사항에 대한 피드백을 팀 구성원에게 요청 및 토론. 
+- Merge: 관리자의 확인 후 변경사항을 업데이트한다. 변경 사항이 모두 반영되면 branch 삭제.
+- Rollback: 코드 업데이트의 취소 처리
+(따라해보기) https://brunch.co.kr/@thswlsgh/2
+
+
+* Git GUI Tool 종류
+- Github desktop
+- sourceTree
+- GitKraken
+- SmartGit
+- Git Cola
+- GitForce
+- Giggle
+- Magit
+- Egit
+- Gitg
+(URL) https://dora-guide.com/git-gui-client/
+
+* Github desktop (ver 2.6.2) 설치 
+- Ubuntu 18.04 LTS
+(참고페이지) https://github.com/shiftkey/desktop
+
+$ wget -qO - https://packagecloud.io/shiftkey/desktop/gpgkey | sudo tee /etc/apt/trusted.gpg.d/shiftkey-desktop.asc > /dev/null
+$ sudo sh -c 'echo "deb [arch=amd64] https://packagecloud.io/shiftkey/desktop/any/ any main" > /etc/apt/sources.list.d/packagecloud-shiftky-desktop.list'
+$ sudo apt-get update
+$ sudo apt install github-desktop
+
