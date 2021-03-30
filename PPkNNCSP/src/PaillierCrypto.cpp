@@ -471,55 +471,73 @@ void PaillierCrypto::SVR(unsigned short idx, unsigned char* ucRecvPtr)
 	return;
 }
 
-//int PaillierCrypto::Comparison(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, cmp_t* tCmp, th_t* tSend)
-int PaillierCrypto::Comparison1(unsigned short idx, unsigned char* ucRecvPtr)
+
+int PaillierCrypto::SCI(unsigned short idx, unsigned char* ucRecvPtr)
 {
-	paillier_plaintext_t  pV;
-	paillier_ciphertext_t cV;
+	paillier_plaintext_t  pV, pT;
+	paillier_ciphertext_t cV, cB;
 
 	#ifdef _DEBUG_INIT_1
-	mpz_inits(pV.m, cV.c, NULL);
+	mpz_inits(pV.m, pT.m, cV.c, cB.c, cB.c, NULL);
 	#else
-	mpz_init2(pV.m, 1);
+	mpz_init2(pV.m, 2*GMP_N_SIZE+1);
+	mpz_init2(pT.m, 1);
 	mpz_init2(cV.c, 2*GMP_N_SIZE);
+	mpz_init2(cB.c, 2*GMP_N_SIZE);
 	#endif
 
-	unsigned char ucSendPtr[HED_SIZE+1] = {0, };				//?? HED_SIZE+1만큼 전송할때 문제가 되지 않는지?
-	int iRes;
-	char bBeta;
+	unsigned char bB[ENC_SIZE] = {0, };
+	unsigned char ucSendPtr[HED_SIZE+ENC_SIZE*DATA_NUMBER_LENGTH] = {0, };				//?? HED_SIZE+1만큼 전송할때 문제가 되지 않는지?
+	int iZero=0;
 	short sLen, sDHidx;
 
-    sDHidx = Byte2Short(ucRecvPtr);
+   sDHidx = Byte2Short(ucRecvPtr);
 	sLen = Byte2Short(ucRecvPtr+HED_LEN);
-	#ifdef _DEBUG_Comparison
+	#ifdef _DEBUG_SCI
 	DebugCom("V' (Hex)\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx, sDHidx);
 	#endif
 
 	#ifdef _DEBUG_Assert
-	assert(sLen == ENC_SIZE);
+	assert(sLen == ENC_SIZE*DATA_NUMBER_LENGTH);
 	#endif
 
-	// V' = E(r*(Cnt-k))
-	paillier_ciphertext_from_bytes(&cV, ucRecvPtr+HED_SIZE, ENC_SIZE);
-	#ifdef _DEBUG_Comparison
-	DebugOut("V (Copied)\t\t\t", cV.c, idx, sDHidx);
+
+	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {
+		// cV
+		paillier_ciphertext_from_bytes(&cV, ucRecvPtr+HED_SIZE+i*DATA_NUMBER_LENGTH, ENC_SIZE);
+		#ifdef _DEBUG_SCI
+		DebugOut("Encrypted cV (Copied)\t\t", cV.c, idx, sDHidx);
+		#endif
+
+		// cV = D(cV')
+		paillier_dec(&pV, mPubKey, mPrvKey, &cV);
+		#ifdef _DEBUG_SCI
+		DebugOut("Decrypted cV\t\t\t", pV.m, idx, sDHidx);
+		#endif
+
+		// compare with 0, (N-1)/2, N
+		if (mpz_cmp_d(pV.m, 0) == 0)
+			iZero++;
+	}
+
+	if (iZero > 0) 		mpz_set_ui(pT.m, 0);
+	else 					mpz_set_ui(pT.m, 1);
+
+	paillier_enc(&cB, mPubKey, &pT, paillier_get_rand_devurandom);
+	#ifdef _DEBUG_SCI
+	DebugDec("Beta'=E(0) or E(1)\t\t", &cB, idx, sDHidx);
 	#endif
 
-	// y = D(Y) = r*(Cnt-k) or = r*(k-Cnt)
-	paillier_dec(&pV, mPubKey, mPrvKey, &cV);
-	#ifdef _DEBUG_Comparison
-    DebugOut("Decrypted V = r(Cnt-k)\t\t", pV.m, idx, sDHidx);
+    paillier_ciphertext_to_bytes(bB, ENC_SIZE, &cB);
+	#ifdef _DEBUG_SCI
+	DebugCom("Beta'=E(0) or E(1) (Hex)\t\t", bB, ENC_SIZE, idx, sDHidx);
 	#endif
 
-    // send gamma (result)
-    iRes = mpz_cmp_ui(pV.m, 0);
-    if (iRes==0)  	{ bBeta = 0; }		// Success
-    else	    	{ bBeta = 1; }		// Fail
-
-	SetSendMsg(ucSendPtr, ucRecvPtr, bBeta);
-    sLen = HED_SIZE+1;
-	#ifdef _DEBUG_Comparison
-	DebugCom("Beta (copied)\t\t\t", ucSendPtr, sLen, idx, sDHidx);
+    sLen = ENC_SIZE;
+	SetSendMsg(ucSendPtr, ucRecvPtr, bB, sLen);
+    sLen += HED_SIZE;
+	#ifdef _DEBUG_SCI
+	DebugCom("Beta'=E(0) or E(1) (copied)\t", ucSendPtr, sLen, idx, sDHidx);
 	#endif
 
 //	mSendMtx->lock();
@@ -536,124 +554,20 @@ int PaillierCrypto::Comparison1(unsigned short idx, unsigned char* ucRecvPtr)
 
 	#ifdef _DEBUG_Assert
 	// checking the allocated size  of GMP
-	assert(   pV.m->_mp_alloc >=   GMP_N_SIZE);
-	assert(	  cV.c->_mp_alloc == 2*GMP_N_SIZE);
-	#endif
-
-	memset(ucRecvPtr, 0, HED_SIZE+2*ENC_SIZE);
-	ucRecvPtr[1] = 0xff;
-
-	return iRes;
-}
-
-//int PaillierCrypto::Comparison(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, cmp_t* tCmp, th_t* tSend)
-int PaillierCrypto::Comparison2(unsigned short idx, unsigned char* ucRecvPtr)
-{
-	paillier_plaintext_t  pUj, pT;
-	paillier_ciphertext_t cUj, cBeta;
-
-	#ifdef _DEBUG_INIT_1
-	mpz_inits(pUj.m, pT.m, cUj.c, cBeta.c, cBeta.c, NULL);
-	#else
-	mpz_init2(pUj.m, 2*GMP_N_SIZE+1);
-	mpz_init2(pT.m, 1);
-	mpz_init2(cUj.c, 2*GMP_N_SIZE);
-	mpz_init2(cBeta.c, 2*GMP_N_SIZE);
-	#endif
-
-	unsigned char bBeta[ENC_SIZE] = {0, };
-	unsigned char ucSendPtr[HED_SIZE+ENC_SIZE] = {0, };				//?? HED_SIZE+1만큼 전송할때 문제가 되지 않는지?
-	int iRes, iZero, iOne, iTmp;
-	short sLen, sDHidx;
-
-    sDHidx = Byte2Short(ucRecvPtr);
-	sLen = Byte2Short(ucRecvPtr+HED_LEN);
-	#ifdef _DEBUG_Comparison
-	DebugCom("Uj' (Hex)\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx, sDHidx);
-	#endif
-
-	#ifdef _DEBUG_Assert
-	assert(sLen == ENC_SIZE);
-	#endif
-
-	// U_j'
-	paillier_ciphertext_from_bytes(&cUj, ucRecvPtr+HED_SIZE, ENC_SIZE);
-	#ifdef _DEBUG_Comparison
-	DebugOut("Encrypted Uj (Copied)\t\t", cUj.c, idx, sDHidx);
-	#endif
-
-	// U_j = D(U_j')
-	paillier_dec(&pUj, mPubKey, mPrvKey, &cUj);
-	#ifdef _DEBUG_Comparison
-    DebugOut("Decrypted Uj\t\t\t", pUj.m, idx, sDHidx);
-	#endif
-
-    // compare with 0, (N-1)/2, N
-    iZero = mpz_cmp_d(pUj.m, 0);
-    iOne  = mpz_cmp_d(pUj.m, 1);
-
-    // send gamma (result)
-    if ((iZero==0)||(iOne==0)) {
-    	if (iZero==0)	iTmp=0;
-    	else			iTmp=1;
-
-    	mpz_set_ui(pT.m, iTmp);
-    	paillier_enc(&cBeta, mPubKey, &pT, paillier_get_rand_devurandom);
-    	iRes = 0;
-		#ifdef _DEBUG_Comparison
-		DebugDec("Beta'=E(0) or E(1)\t\t", &cBeta, idx, sDHidx);
-		#endif
-
-	    paillier_ciphertext_to_bytes(bBeta, ENC_SIZE, &cBeta);
-		#ifdef _DEBUG_Comparison
-		DebugCom("Beta'=E(0) or E(1) (Hex)\t\t", bBeta, ENC_SIZE, idx, sDHidx);
-		#endif
-
-	    sLen = ENC_SIZE;
-		SetSendMsg(ucSendPtr, ucRecvPtr, bBeta, sLen);
-	    sLen += HED_SIZE;
-		#ifdef _DEBUG_Comparison
-		DebugCom("Beta'=E(0) or E(1) (copied)\t", ucSendPtr, sLen, idx, sDHidx);
-		#endif
-    }
-    else {
-    	iRes = 1;
-
-		SetSendMsg(ucSendPtr, ucRecvPtr, (unsigned char)iRes);
-	    sLen = HED_SIZE+1;
-		#ifdef _DEBUG_Comparison
-		DebugCom("(continue message)\t\t", ucSendPtr, sLen, idx, sDHidx);
-		#endif
-    }
-
-//	mSendMtx->lock();
-//	mSendQueue->push(ucSendPtr);
-//	mSendMtx->unlock();
-//	mSendCV->notify_all();			// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
-
-	try {
-		mCSocket->send(ucSendPtr, sLen);
-	}
-	catch ( SocketException& e ) {
-		std::cout << "Exception: " << e.description() << std::endl;
-	}
-
-	#ifdef _DEBUG_Assert
-	// checking the allocated size  of GMP
-	assert(	 pUj.m->_mp_alloc >= GMP_N_SIZE);
+	assert(	 pV.m->_mp_alloc >= GMP_N_SIZE);
 	assert(   pT.m->_mp_alloc == 1);
-	assert(	 cUj.c->_mp_alloc == 2*GMP_N_SIZE);
-	assert(cBeta.c->_mp_alloc >= 1);
+	assert(	 cV.c->_mp_alloc == 2*GMP_N_SIZE);
+	assert(cB.c->_mp_alloc >= 1);
 	#endif
 
 	memset(ucRecvPtr, 0, HED_SIZE+2*ENC_SIZE);
 	ucRecvPtr[1] = 0xff;
 
-	return iRes;
+	return 0;
 }
 
-//bool PaillierCrypto::CFTKD(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend)
-bool PaillierCrypto::CFTKD(unsigned short idx, unsigned char* ucRecvPtr)
+//bool PaillierCrypto::SCF(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend)
+bool PaillierCrypto::SCF(unsigned short idx, unsigned char* ucRecvPtr)
 {
 	paillier_plaintext_t  pU, pV;
 	paillier_ciphertext_t cV, cU;
@@ -674,7 +588,7 @@ bool PaillierCrypto::CFTKD(unsigned short idx, unsigned char* ucRecvPtr)
 	// U'
     sDHidx = Byte2Short(ucRecvPtr);
 	sLen = Byte2Short(ucRecvPtr+HED_LEN);
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
     DebugCom("U' (Hex)\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx, sDHidx);
 	#endif
 
@@ -683,13 +597,13 @@ bool PaillierCrypto::CFTKD(unsigned short idx, unsigned char* ucRecvPtr)
 	#endif
 
 	paillier_ciphertext_from_bytes(&cU, ucRecvPtr+HED_SIZE, ENC_SIZE);
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
 	DebugDec("U (Copied)\t\t\t", &cU, idx, sDHidx);
 	#endif
 
 	// u = D(U)
 	paillier_dec(&pU, mPubKey, mPrvKey, &cU);
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
 	DebugOut("Decrypted u = D(U)\t\t", pU.m, idx, sDHidx);
 	#endif
 
@@ -700,21 +614,21 @@ bool PaillierCrypto::CFTKD(unsigned short idx, unsigned char* ucRecvPtr)
 		mpz_set_ui(pV.m, 0);
 
 	paillier_enc(&cV, mPubKey, &pV, paillier_get_rand_devurandom);
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
 	//DebugOut("(u==0) V=E(1), (u!=0) V=E(0)", cV.c, idx, sDHidx);
 	DebugDec("(u==0) V=E(1), (u!=0) V=E(0)\t", &cV, idx, sDHidx);
 	#endif
 
 	// send V'
 	paillier_ciphertext_to_bytes(bV, ENC_SIZE, &cV);
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
 	DebugCom("V' (Hex)\t\t\t", bV, ENC_SIZE, idx, sDHidx);
 	#endif
 
     sLen = ENC_SIZE;
 	SetSendMsg(ucSendPtr, ucRecvPtr, bV, sLen);
     sLen += HED_SIZE;
-	#ifdef _DEBUG_CFTKD
+	#ifdef _DEBUG_SCF
 	DebugCom("h' = E(h) (copied)\t\t", ucSendPtr, sLen, idx, sDHidx);
 	#endif
 
@@ -1082,4 +996,188 @@ int PaillierCrypto::Receiver(th_t* tRecv)
 	}
 
 	return 0;
+}
+
+
+
+
+//int PaillierCrypto::Comparison(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, cmp_t* tCmp, th_t* tSend)
+int PaillierCrypto::Comparison1(unsigned short idx, unsigned char* ucRecvPtr)
+{
+	paillier_plaintext_t  pV;
+	paillier_ciphertext_t cV;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(pV.m, cV.c, NULL);
+	#else
+	mpz_init2(pV.m, 1);
+	mpz_init2(cV.c, 2*GMP_N_SIZE);
+	#endif
+
+	unsigned char ucSendPtr[HED_SIZE+1] = {0, };				//?? HED_SIZE+1만큼 전송할때 문제가 되지 않는지?
+	int iRes;
+	char bBeta;
+	short sLen, sDHidx;
+
+    sDHidx = Byte2Short(ucRecvPtr);
+	sLen = Byte2Short(ucRecvPtr+HED_LEN);
+	#ifdef _DEBUG_Comparison
+	DebugCom("V' (Hex)\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx, sDHidx);
+	#endif
+
+	#ifdef _DEBUG_Assert
+	assert(sLen == ENC_SIZE);
+	#endif
+
+	// V' = E(r*(Cnt-k))
+	paillier_ciphertext_from_bytes(&cV, ucRecvPtr+HED_SIZE, ENC_SIZE);
+	#ifdef _DEBUG_Comparison
+	DebugOut("V (Copied)\t\t\t", cV.c, idx, sDHidx);
+	#endif
+
+	// y = D(Y) = r*(Cnt-k) or = r*(k-Cnt)
+	paillier_dec(&pV, mPubKey, mPrvKey, &cV);
+	#ifdef _DEBUG_Comparison
+    DebugOut("Decrypted V = r(Cnt-k)\t\t", pV.m, idx, sDHidx);
+	#endif
+
+    // send gamma (result)
+    iRes = mpz_cmp_ui(pV.m, 0);
+    if (iRes==0)  	{ bBeta = 0; }		// Success
+    else	    	{ bBeta = 1; }		// Fail
+
+	SetSendMsg(ucSendPtr, ucRecvPtr, bBeta);
+    sLen = HED_SIZE+1;
+	#ifdef _DEBUG_Comparison
+	DebugCom("Beta (copied)\t\t\t", ucSendPtr, sLen, idx, sDHidx);
+	#endif
+
+//	mSendMtx->lock();
+//	mSendQueue->push(ucSendPtr);
+//	mSendMtx->unlock();
+//	mSendCV->notify_all();			// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
+
+	try {
+		mCSocket->send(ucSendPtr, sLen);
+	}
+	catch ( SocketException& e ) {
+		std::cout << "Exception: " << e.description() << std::endl;
+	}
+
+	#ifdef _DEBUG_Assert
+	// checking the allocated size  of GMP
+	assert(   pV.m->_mp_alloc >=   GMP_N_SIZE);
+	assert(	  cV.c->_mp_alloc == 2*GMP_N_SIZE);
+	#endif
+
+	memset(ucRecvPtr, 0, HED_SIZE+2*ENC_SIZE);
+	ucRecvPtr[1] = 0xff;
+
+	return iRes;
+}
+
+//int PaillierCrypto::Comparison(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, cmp_t* tCmp, th_t* tSend)
+int PaillierCrypto::Comparison2(unsigned short idx, unsigned char* ucRecvPtr)
+{
+	paillier_plaintext_t  pUj, pT;
+	paillier_ciphertext_t cUj, cBeta;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(pUj.m, pT.m, cUj.c, cBeta.c, cBeta.c, NULL);
+	#else
+	mpz_init2(pUj.m, 2*GMP_N_SIZE+1);
+	mpz_init2(pT.m, 1);
+	mpz_init2(cUj.c, 2*GMP_N_SIZE);
+	mpz_init2(cBeta.c, 2*GMP_N_SIZE);
+	#endif
+
+	unsigned char bBeta[ENC_SIZE] = {0, };
+	unsigned char ucSendPtr[HED_SIZE+ENC_SIZE] = {0, };				//?? HED_SIZE+1만큼 전송할때 문제가 되지 않는지?
+	int iRes, iZero, iOne, iTmp;
+	short sLen, sDHidx;
+
+    sDHidx = Byte2Short(ucRecvPtr);
+	sLen = Byte2Short(ucRecvPtr+HED_LEN);
+	#ifdef _DEBUG_Comparison
+	DebugCom("Uj' (Hex)\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx, sDHidx);
+	#endif
+
+	#ifdef _DEBUG_Assert
+	assert(sLen == ENC_SIZE);
+	#endif
+
+	// U_j'
+	paillier_ciphertext_from_bytes(&cUj, ucRecvPtr+HED_SIZE, ENC_SIZE);
+	#ifdef _DEBUG_Comparison
+	DebugOut("Encrypted Uj (Copied)\t\t", cUj.c, idx, sDHidx);
+	#endif
+
+	// U_j = D(U_j')
+	paillier_dec(&pUj, mPubKey, mPrvKey, &cUj);
+	#ifdef _DEBUG_Comparison
+    DebugOut("Decrypted Uj\t\t\t", pUj.m, idx, sDHidx);
+	#endif
+
+    // compare with 0, (N-1)/2, N
+    iZero = mpz_cmp_d(pUj.m, 0);
+    iOne  = mpz_cmp_d(pUj.m, 1);
+
+    // send gamma (result)
+    if ((iZero==0)||(iOne==0)) {
+    	if (iZero==0)	iTmp=0;
+    	else			iTmp=1;
+
+    	mpz_set_ui(pT.m, iTmp);
+    	paillier_enc(&cBeta, mPubKey, &pT, paillier_get_rand_devurandom);
+    	iRes = 0;
+		#ifdef _DEBUG_Comparison
+		DebugDec("Beta'=E(0) or E(1)\t\t", &cBeta, idx, sDHidx);
+		#endif
+
+	    paillier_ciphertext_to_bytes(bBeta, ENC_SIZE, &cBeta);
+		#ifdef _DEBUG_Comparison
+		DebugCom("Beta'=E(0) or E(1) (Hex)\t\t", bBeta, ENC_SIZE, idx, sDHidx);
+		#endif
+
+	    sLen = ENC_SIZE;
+		SetSendMsg(ucSendPtr, ucRecvPtr, bBeta, sLen);
+	    sLen += HED_SIZE;
+		#ifdef _DEBUG_Comparison
+		DebugCom("Beta'=E(0) or E(1) (copied)\t", ucSendPtr, sLen, idx, sDHidx);
+		#endif
+    }
+    else {
+    	iRes = 1;
+
+		SetSendMsg(ucSendPtr, ucRecvPtr, (unsigned char)iRes);
+	    sLen = HED_SIZE+1;
+		#ifdef _DEBUG_Comparison
+		DebugCom("(continue message)\t\t", ucSendPtr, sLen, idx, sDHidx);
+		#endif
+    }
+
+//	mSendMtx->lock();
+//	mSendQueue->push(ucSendPtr);
+//	mSendMtx->unlock();
+//	mSendCV->notify_all();			// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
+
+	try {
+		mCSocket->send(ucSendPtr, sLen);
+	}
+	catch ( SocketException& e ) {
+		std::cout << "Exception: " << e.description() << std::endl;
+	}
+
+	#ifdef _DEBUG_Assert
+	// checking the allocated size  of GMP
+	assert(	 pUj.m->_mp_alloc >= GMP_N_SIZE);
+	assert(   pT.m->_mp_alloc == 1);
+	assert(	 cUj.c->_mp_alloc == 2*GMP_N_SIZE);
+	assert(cBeta.c->_mp_alloc >= 1);
+	#endif
+
+	memset(ucRecvPtr, 0, HED_SIZE+2*ENC_SIZE);
+	ucRecvPtr[1] = 0xff;
+
+	return iRes;
 }

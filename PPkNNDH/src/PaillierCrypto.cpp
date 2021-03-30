@@ -128,7 +128,7 @@ void PaillierCrypto::PreComputation(pre_t *tPre, skle_t* tSkle, out_t *tOut, in_
 	for (int i=0 ; i<NUM_THREAD_DATA ; i++)
 		#ifdef _DEBUG_INIT_1
 		//mpz_inits(tSkle->cTRes[i].c, tSkle->cIRes[i].c, tSkle->cCan[i].c, NULL);
-		mpz_inits(tSkle->cC[i].c, tSkle->cK[i].c, NULL);
+		mpz_inits(tSkle->cC[i].c, tSkle->cK[i].c, tSkle->cU[i].c, NULL);
 		#else
 		{ mpz_init2(tSkle->cTRes[i].c, 2*GMP_N_SIZE*2);
 		  mpz_init2(tSkle->cIRes[i].c, 2*GMP_N_SIZE*2);
@@ -1156,23 +1156,24 @@ void PaillierCrypto::SkLE_s_Init(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool b
 	return;
 }
 
-//void PaillierCrypto::SkLE_s_Main1(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
-void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv)
+/*
+void PaillierCrypto::SkLE_s_1(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv)
+//void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv,
+//		unique_lock<mutex> ulSync, sync_t* tSync)
 {
 	int iNum = bFirst ? tOut->iRan[idx+1]-tOut->iRan[idx] : tOut->iRan2[idx+1]-tOut->iRan2[idx];
-	int iLen = bFirst ? DATA_SQUARE_LENGTH : DATA_NUMBER_LENGTH;
+//	int iLen = bFirst ? DATA_SQUARE_LENGTH : DATA_NUMBER_LENGTH;
 
-	paillier_ciphertext_t  *cE, *cC, *cK;
-	paillier_ciphertext_t  cS, cP;
+	paillier_ciphertext_t  *cE, *cC, *cK, *cS;
+	paillier_ciphertext_t  cP;
 	paillier_ciphertext_t  cU[iNum], cT;
 	paillier_ciphertext_t  cM, cD, cA, cB, cG;
 
 	#ifdef _DEBUG_INIT_1
-	mpz_inits(cS.c, cP.c, cT.c, cM.c, cD.c, cA.c, cB.c, cG.c, NULL);
+	mpz_inits(cP.c, cT.c, cM.c, cD.c, cA.c, cB.c, cG.c, NULL);
 	for (int i=0 ; i<iNum ; i++)
 		mpz_inits(cU[i].c, NULL);
 	#else
-	mpz_init2(cS.c, 2*GMP_N_SIZE*2);
 	mpz_init2(cP.c, 2*GMP_N_SIZE*2);
 	mpz_init2(cT.c, 2*GMP_N_SIZE*2);
 	mpz_init2(cM.c, 2*GMP_N_SIZE*2);
@@ -1187,119 +1188,141 @@ void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool b
 
 	int SrtDat, EndDat;
 	int iTidx ;
+//	unsigned int *pSyncCnt2, *pSyncCnt1;
 
 	SrtDat = bFirst ? tOut->iRan[idx]  : tOut->iRan2[idx];			// 각 thread의 data 시작점
-	EndDat = SrtDat + iNum;												// 각 thread의 data 종료점
+//	EndDat = SrtDat + iNum;												// 각 thread의 data 종료점
 //	cC = tSkle->cC;
 //	cK = tSkle->cK;
 
+	cS = tOut->cTCnt+idx;												// 각 thread의 S값
+//	cS = (tOut->cTCnt)+idx;												// 각 thread의 S값
 
 
 
-	for (int j=iLen-1 ; j>=0 ; j++) {			// j = l-1 ~ 0
 
+	///////////////////////// Step 1 /////////////////////////
 
-		///////////////////////// Step 1 /////////////////////////
+	// initialize S
+	mpz_set_ui(cS->c, 1);
 
-		// initialize S
-		mpz_set_ui(cS.c, 1);
+	for (int i=0 ; i<iNum ; i++) {			// i = 각 thread의 data 시작점 ~ 종료점
+		// iTidx = bFirst ? tOut->iRan[idx]+i  : tOut->iRan2[idx]+i;
+		cE = bFirst ? &(tOut->cSbit[SrtDat+i][bit]) : &(tOut->cFbit[SrtDat+i][bit]);
+		cC = &(tSkle->cC[i]);
+		cK = &(tSkle->cK[i]);
 
-		for (int i=SrtDat ; i<EndDat ; i++) {			// i = 각 thread의 data 시작점 ~ 종료점
-			// iTidx = bFirst ? tOut->iRan[idx]+i  : tOut->iRan2[idx]+i;
-			cE = bFirst ? &(tOut->cSbit[i][j]) : &(tOut->cFbit[i][j]);
-			cC = &(tSkle->cC[i]);
-			cK = &(tSkle->cK[i]);
+		#ifdef _DEBUG_SkLE_s
+		printf("[DH-%03d] *** (step 1) [%d, %d] P ***\n", (int)idx, SrtDat+i, bit);
+		DebugDec("E[i,j]\t\t\t", cE, idx);
+		DebugDec("C[i]\t\t\t\t", cC, idx);
+		DebugDec("K[i]\t\t\t\t", cK, idx);
+		#endif
 
-			#ifdef _DEBUG_SkLE_s
-			printf("[DH-%03d] *** (step 1) [%d, %d] P ***\n", (int)idx, i, j);
-			DebugDec("E[i,j]\t\t\t", cE, idx);
-			DebugDec("C[i]\t\t\t\t", cC, idx);
-			DebugDec("K[i]\t\t\t\t", cK, idx);
-			#endif
+		// U[i] = SM(C[i], e[i,j])
+		//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+		SecMul(cU+i, cC, cE, idx, tRecv);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("U[i] = SM(C[i], e[i,j]) \t", cU+i, idx);
+		#endif
 
-			// U[i] = SM(C[i], e[i,j])
-			//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
-			SecMul(cU+i-SrtDat, cC, cE, idx, tRecv);
-			#ifdef _DEBUG_SkLE_s
-			DebugDec("U[i] = SM(C[i], e[i,j]) \t", cU+i-SrtDat, idx);
-			#endif
+		// P = K[i] * U[i]
+		paillier_mul(mPubKey, &cP, cU+i, cK);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("P = K[i] * T[i] \t\t", &cP, idx);
+		#endif
 
-			// P = K[i] * U[i]
-			paillier_mul(mPubKey, &cP, cU+i-SrtDat, cK);
-			#ifdef _DEBUG_SkLE_s
-			DebugDec("P = K[i] * T[i] \t\t", &cP, idx);
-			#endif
-
-			// S = Sum_(i=1~n) P[i]
-			//paillier_mul(mPubKey, &(tOut->cTCnt[idx]), &(tOut->cTCnt[idx]), &(tSkle->cTRes[i]));
-			paillier_mul(mPubKey, &cS, &cS, &cP);
-			#ifdef _DEBUG_SkLE_s
-			DebugDec("S = Sum_(i=1~n) P[i] \t", &cS, idx);
-			#endif
-		}
+		// S = Sum_(i=1~n) P[i]
+		//paillier_mul(mPubKey, &(tOut->cTCnt[idx]), &(tOut->cTCnt[idx]), &(tSkle->cTRes[i]));
+		paillier_mul(mPubKey, cS, cS, &cP);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("S = Sum_(i=1~n) P[i] \t", cS, idx);
+		#endif
+	}
 
 		///////////////////////// Step 2 /////////////////////////
 
-//		// thread 일시정지
-//		ulSync.lock();
-//		if (iNum%2 == 0) 		{	pSyncCnt2 = &(tSync->c2);	pSyncCnt1 = &(tSync->c1);	}
-//		else 					{	pSyncCnt2 = &(tSync->c1);	pSyncCnt1 = &(tSync->c2);	}
-//
-//		(*pSyncCnt2)++;
-//		if (*pSyncCnt2 < NUM_MAIN_THREAD) {
-//			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=NUM_MAIN_THREAD;});
-//		}
-//		else {
-//			//oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv, tSend, ucSendBuf);
-//			oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv);
-//			tSync->cv.notify_all();		*pSyncCnt1=0;
-//		}
-//		ulSync.unlock();
+		// thread 일시정지
+		ulSync->lock();
+		if (j%2 == 0) 		{	pSyncCnt2 = &(tSync->c2);	pSyncCnt1 = &(tSync->c1);	}
+		else 					{	pSyncCnt2 = &(tSync->c1);	pSyncCnt1 = &(tSync->c2);	}
+
+		(*pSyncCnt2)++;
+		if (*pSyncCnt2 < NUM_MAIN_THREAD) {
+			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=NUM_MAIN_THREAD;});
+		}
+		else {
+
+			// 각 thread의 S 합산
+
+			int iNumThread = bFirst ? NUM_MAIN_THREAD : NUM_MAIN_THREAD2;
+			paillier_ciphertext_t *cTotal_S = tOut->cCnt;
+
+			// initialize cCnt
+			mpz_set_ui(tOut->cCnt.c, 1);
+
+			// S = Sum_(i=1~n) P[i]
+			for (int i=0 ; i<iNumThread ; i++)
+				paillier_mul(mPubKey, cTotal_S, cTotal_S, &(tOut->cTCnt[i]));
+
+			#ifdef _DEBUG_SkLE_s
+			//DebugOut("S = Sum_(i=1~n) P[i]", tOut->cCnt.c, idx);
+			DebugDec("S = Sum_(i=1~n) P[i] \t", cTotal_S, idx);
+			#else
+			//printf("%d \n", bit);
+			printf("%d bit - ", bit);
+			DebugDec("Cnt'\t\t", &(tOut->cCnt), idx);
+			#endif
+
+//			// temp code (delete)
+//			mpz_set(tOut->cCnt.c, cS.c);
 
 
-		// 각 thread의 S 합산
+			///////////////////////// Step 3 /////////////////////////
 
+			// SBD of S
+			SecBitDecomp(tOut, tSkle, tPre, bFirst, idx, tRecv);
 
-		///////////////////////// Step 3 /////////////////////////
+			// SCI
 
-		// SBD of S
-		SecBitDecomp(tOut, tSkle, tPre, bFirst, idx, tRecv);
-
-		// SCI
-
-		// temp code: E(M)=E(1),E(D)=E(1)
-		mpz_set(cM.c, tPre->c1.c);
-		mpz_set(cD.c, tPre->c1.c);
+			// temp code: E(M)=E(1),E(D)=E(1)
+			mpz_set(cM.c, tPre->c1.c);
+			mpz_set(cD.c, tPre->c1.c);
 
 
 
-		///////////////////////// Step 4 /////////////////////////
+			///////////////////////// Step 4 /////////////////////////
 
-		// Alpha, Beta, Gamma 계산
+			// Alpha, Beta, Gamma 계산
 
-		// Alpha = SM(D, M)
-		//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
-		SecMul(&cA, &cD, &cM, idx, tRecv);
-		#ifdef _DEBUG_SkLE_s
-		DebugDec("Alpha = SM(D, M) \t\t", &cA, idx);
-		#endif
+			// Alpha = SM(D, M)
+			//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+			SecMul(&cA, &cD, &cM, idx, tRecv);
+			#ifdef _DEBUG_SkLE_s
+			DebugDec("Alpha = SM(D, M) \t\t", &cA, idx);
+			#endif
 
-		// Beta = E(1) * E(D)^(N-1) * E(Alpha)
-		paillier_exp(mPubKey, &cT, &cD, &(tPre->pN1));
-		paillier_mul(mPubKey, &cT, &(tPre->c1), &cT);
-		paillier_mul(mPubKey, &cB, &cT, &cA);
-		#ifdef _DEBUG_SkLE_s
-		DebugDec("Beta = E(1)*E(D)^(N-1)*E(A)", &cB, idx);
-		#endif
+			// Beta = E(1) * E(D)^(N-1) * E(Alpha)
+			paillier_exp(mPubKey, &cT, &cD, &(tPre->pN1));
+			paillier_mul(mPubKey, &cT, &(tPre->c1), &cT);
+			paillier_mul(mPubKey, &cB, &cT, &cA);
+			#ifdef _DEBUG_SkLE_s
+			DebugDec("Beta = E(1)*E(D)^(N-1)*E(A)", &cB, idx);
+			#endif
 
-		// Gamma = E(D) * E(Alpha)^(N-2)
-		paillier_exp(mPubKey, &cT, &cA, &(tPre->pN2));
-		paillier_mul(mPubKey, &cG, &cD, &cT);
-		#ifdef _DEBUG_SkLE_s
-		DebugDec("Gamma = E(D) * E(A)^(N-2) ", &cG, idx);
-		#endif
+			// Gamma = E(D) * E(Alpha)^(N-2)
+			paillier_exp(mPubKey, &cT, &cA, &(tPre->pN2));
+			paillier_mul(mPubKey, &cG, &cD, &cT);
+			#ifdef _DEBUG_SkLE_s
+			DebugDec("Gamma = E(D) * E(A)^(N-2) ", &cG, idx);
+			#endif
 
-		// thread 재시작
+
+			// thread 재시작
+			tSync->cv.notify_all();		*pSyncCnt1=0;
+		}
+		ulSync->unlock();
+
 
 
 
@@ -1310,12 +1333,12 @@ void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool b
 			cK = &(tSkle->cK[i]);
 
 			#ifdef _DEBUG_SkLE_s
-			printf("[DH-%03d] *** (step 4) [%d, %d] C, K ***\n", (int)idx, i, j);
+			printf("[DH-%03d] *** (step 4) [%d, %d] C, K ***\n", (int)idx, SrtDat+i, j);
 			#endif
 
 			// T = SM(U[i], Beta)
 			//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
-			SecMul(&cT, cU+i-SrtDat, &cB, idx, tRecv);
+			SecMul(&cT, cU+i, &cB, idx, tRecv);
 			#ifdef _DEBUG_SkLE_s
 			DebugDec("T = SM(U[i], Beta) \t", &cT, idx);
 			#endif
@@ -1374,460 +1397,749 @@ void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool b
 
 	return;
 }
+*/
 
-//void PaillierCrypto::SkLE_s_Cmp(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
-void PaillierCrypto::SkLE_s_Cmp(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv)
+
+//void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv,
+//		unique_lock<mutex> ulSync, sync_t* tSync)
+void PaillierCrypto::SkLE_s_1(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv)
 {
-	int iNumThread, iCmpRes, iTmp ;
+	paillier_ciphertext_t  *cE, *cC, *cK, *cU, *cS, cP;
 
-	iNumThread = bFirst ? NUM_MAIN_THREAD : NUM_MAIN_THREAD2;
-
-	// initialize cCnt
-	mpz_set_ui(tOut->cCnt.c, 1);
-	// Cnt' = Sum_(i=1~n) tRes'_i
-	for (int i=0 ; i<iNumThread ; i++)
-		paillier_mul(mPubKey, &(tOut->cCnt), &(tOut->cCnt), &(tOut->cTCnt[i]));
-	#ifdef _DEBUG_SkLE_s
-	//DebugOut("Cnt' = Sum_(i=1~n) tRes'_i", tOut->cCnt.c, idx);
-	DebugDec("Cnt' = Sum_(i=1~n) tRes'_i\t", &(tOut->cCnt), idx);
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(cP.c, NULL);
 	#else
-	//printf("%d \n", bit);
-	printf("%d bit - ", bit);
-	DebugDec("Cnt'\t\t", &(tOut->cCnt), idx);
+	mpz_init2(cP.c, 2*GMP_N_SIZE*2);
 	#endif
 
-	// compute Secure Bit-Decomposition of Cnt
-	//SecBitDecomp(tOut, &tSkle, &tPre, bFirst, idx, tRecv, tSend, ucSendBuf);
-	SecBitDecomp(tOut, tSkle, tPre, bFirst, idx, tRecv);
+	int iNum = bFirst ? tOut->iRan[idx+1]-tOut->iRan[idx] : tOut->iRan2[idx+1]-tOut->iRan2[idx];
+	int SrtDat = bFirst ? tOut->iRan[idx]  : tOut->iRan2[idx];			// 각 thread의 data 시작점
+	cS = tOut->cTCnt+idx;													// 각 thread의 S값
 
+	///////////////////////// Step 1 /////////////////////////
+
+	// initialize S
+	mpz_set_ui(cS->c, 1);
+
+	for (int i=0 ; i<iNum ; i++) {			// i = 각 thread의 data 시작점 ~ 종료점
+		// iTidx = bFirst ? tOut->iRan[idx]+i  : tOut->iRan2[idx]+i;
+		cE = bFirst ? &(tOut->cSbit[SrtDat+i][bit]) : &(tOut->cFbit[SrtDat+i][bit]);
+		cC = (tSkle->cC)+i;
+		cK = (tSkle->cK)+i;
+		cU = (tSkle->cU)+i;
+
+		#ifdef _DEBUG_SkLE_s
+		printf("[DH-%03d] *** (step 1) [%d, %d] P ***\n", (int)idx, SrtDat+i, bit);
+		DebugDec("E[i,j] \t\t\t", cE, idx);
+		DebugDec("C[i] \t\t\t", cC, idx);
+		DebugDec("K[i] \t\t\t", cK, idx);
+		#endif
+
+		// U[i] = SM(C[i], e[i,j])
+		//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+		SecMul(cU, cC, cE, idx, tRecv);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("U[i] = SM(C[i], e[i,j]) \t", cU, idx);
+		#endif
+
+		// P = K[i] * U[i]
+		paillier_mul(mPubKey, &cP, cU, cK);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("P = K[i] * T[i] \t\t", &cP, idx);
+		#endif
+
+		// S = Sum_(i=1~n) P[i]
+		//paillier_mul(mPubKey, &(tOut->cTCnt[idx]), &(tOut->cTCnt[idx]), &(tSkle->cTRes[i]));
+		paillier_mul(mPubKey, cS, cS, &cP);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("S = Sum_(i=1~n) P[i] \t", cS, idx);
+		#endif
+	}
+
+	#ifdef _DEBUG_Assert
+	// checking the allocated size  of GMP
+	assert(cTmp1i.c->_mp_alloc == 2*GMP_N_SIZE*2);
+	assert(cTmp2i.c->_mp_alloc <= 2*GMP_N_SIZE*2);
+	assert(cTmp3i.c->_mp_alloc <= 2*GMP_N_SIZE*2);
+	#endif
+
+	return;
+}
+
+
+//void PaillierCrypto::SkLE_s_Cmp(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
+void PaillierCrypto::SkLE_s_234(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv)
+{
+	paillier_ciphertext_t *cM, *cD, *cA, *cB, *cG, cT, *cTotal_S;
+	int iTmp;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(cT.c, NULL);
+	#else
+	mpz_init2(cT.c, 2*GMP_N_SIZE*2);
+	#endif
+
+	cM = &(tSkle->cM);
+	cD = &(tSkle->cD);
+	cA = &(tSkle->cA);
+	cB = &(tSkle->cB);
+	cG = &(tSkle->cG);
+	cTotal_S = &(tOut->cCnt);
+
+	///////////////////////// Step 2 /////////////////////////
+
+	// initialize cCnt
+	mpz_set_ui(cTotal_S->c, 1);
+	iTmp = bFirst ? NUM_MAIN_THREAD : NUM_MAIN_THREAD2;
+
+	// S = Sum_(i=1~n) P[i]
+	for (int i=0 ; i<iTmp ; i++)
+		paillier_mul(mPubKey, cTotal_S, cTotal_S, (tOut->cTCnt)+i);
+	#ifdef _DEBUG_SkLE_s
+	//DebugOut("S = Sum_(i=1~n) P[i]", tOut->cCnt.c, idx);
+	DebugDec("S = Sum_(i=1~n) P[i] \t", cTotal_S, idx);
+	#endif
+
+	///////////////////////// Step 3 /////////////////////////
+
+	// SBD of S
+	SecBitDecomp(tOut, tSkle, tPre, bFirst, idx, tRecv);
+	// 결과 출력
+
+	// SBD of K
 	if (bFirst) {		// param_k=PARAM_Kbit
 		iTmp = PARAM_K;
 		for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {
 			tSkle->iKbit[i] = iTmp%2;
 			iTmp >>= 1;
 		}
-		iTmp = PARAM_K;
 	}
 	else {				// param_k=1
 		std::fill_n(tSkle->iKbit, DATA_NUMBER_LENGTH, 0);
 		tSkle->iKbit[0] = 1;
-		iTmp = 1;
 	}
 
-//	iCmpRes = Comparison(&(tOut->cCmp), &(tOut->cCnt), tSkle->cCntbit[0], tSkle->cCntbit[1], iTmp, tSkle->iKbit, tPre, idx, tRecv);
-//	tOut->iCmp = Comparison(&(tOut->cCmp), &(tOut->cCnt), tSkle->cCntbit[0], tSkle->cCntbit[1], iTmp, tSkle->iKbit, tPre, idx, tRecv);
+	// SCI
+	SCI(cM, cD, tSkle->cCntbit[0], tSkle->cCntbit[1], tSkle->iKbit, tPre, idx, tRecv);
 	#ifdef _DEBUG_SkLE_s
-//	DebugOut("Comparison result\t\t", iCmpRes, idx);
-	DebugOut("Comparison result\t\t", tOut->iCmp, idx);
-	//DebugOut("Comparison data\t\t", cCmp->c, idx);
-	DebugDec("Comparison data\t\t", &(tOut->cCmp), idx);
+	//DebugOut("S = Sum_(i=1~n) P[i]", tOut->cCnt.c, idx);
+	DebugDec("M = \t\t\t\t", cM, idx);
+	DebugDec("D = \t\t\t\t", cM, idx);
 	#endif
 
-	if ((iCmpRes==0) || (bit<0)) {
-		if (iCmpRes == 0)						tOut->iCmp = 1;		// cTRes;
-		if (bit < 0) 							tOut->iCmp = 2;		// cIRes;
-	}
-	else										tOut->iCmp = 0;
+	///////////////////////// Step 4 /////////////////////////
+
+	// Alpha = SM(D, M)
+	//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+	SecMul(cA, cD, cM, idx, tRecv);
+	#ifdef _DEBUG_SkLE_s
+	DebugDec("Alpha = SM(D, M) \t\t", cA, idx);
+	#endif
+
+	// Beta = E(1) * E(D)^(N-1) * E(Alpha)
+	paillier_exp(mPubKey, &cT, cD, &(tPre->pN1));
+	paillier_mul(mPubKey, &cT, &(tPre->c1), &cT);
+	paillier_mul(mPubKey, cB, &cT, cA);
+	#ifdef _DEBUG_SkLE_s
+	DebugDec("Beta = E(1)*E(D)^(N-1)*E(A)", cB, idx);
+	#endif
+
+	// Gamma = E(D) * E(Alpha)^(N-2)
+	paillier_exp(mPubKey, &cT, cA, &(tPre->pN2));
+	paillier_mul(mPubKey, cG, cD, &cT);
+	#ifdef _DEBUG_SkLE_s
+	DebugDec("Gamma = E(D) * E(A)^(N-2) ", cG, idx);
+	#endif
 
 	return;
 }
 
-//int PaillierCrypto::Comparison(paillier_ciphertext_t* cGamma, paillier_ciphertext_t* cCnt, paillier_ciphertext_t* cCntbit,
-//		paillier_ciphertext_t* cCntCom, int iK, int* iKbit, pre_t *tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
 
-//int PaillierCrypto::Comparison(paillier_ciphertext_t* cM, paillier_ciphertext_t* cD, paillier_ciphertext_t* cCnt, paillier_ciphertext_t* cCntbit,
-//		paillier_ciphertext_t* cCntCom, int iK, int* iKbit, pre_t *tPre, unsigned short idx, thp_t* tRecv)
-//{
-//	std::unique_lock<std::mutex> ulRecv(tRecv->m, std::defer_lock);
-//	unsigned char* ucRecvPtr=NULL;
-//	unsigned char ucSendPtr[HED_SIZE+ENC_SIZE]={0,};
-//	unsigned char bX[ENC_SIZE]={0,};
-//	short sLen;
+
+////	iCmpRes = Comparison(&(tOut->cCmp), &(tOut->cCnt), tSkle->cCntbit[0], tSkle->cCntbit[1], iTmp, tSkle->iKbit, tPre, idx, tRecv);
+////	tOut->iCmp = Comparison(&(tOut->cCmp), &(tOut->cCnt), tSkle->cCntbit[0], tSkle->cCntbit[1], iTmp, tSkle->iKbit, tPre, idx, tRecv);
+//	#ifdef _DEBUG_SkLE_s
+////	DebugOut("Comparison result\t\t", iCmpRes, idx);
+//	DebugOut("Comparison result\t\t", tOut->iCmp, idx);
+//	//DebugOut("Comparison data\t\t", cCmp->c, idx);
+//	DebugDec("Comparison data\t\t", &(tOut->cCmp), idx);
+//	#endif
 //
-//	paillier_plaintext_t p0, pR, pT ;
-//	paillier_ciphertext_t cW[DATA_NUMBER_LENGTH], cX[DATA_NUMBER_LENGTH], cY[DATA_NUMBER_LENGTH] ;
-//	paillier_ciphertext_t cGamma1, cBeta, cP, cT, cM, cD, c1 ;
-//	int iAlpha, iRes;
-//	unsigned int uiPhi[DATA_SIZE], uiTmp, k;
+//	if ((iCmpRes==0) || (bit<0)) {
+//		if (iCmpRes == 0)						tOut->iCmp = 1;		// cTRes;
+//		if (bit < 0) 							tOut->iCmp = 2;		// cIRes;
+//	}
+//	else										tOut->iCmp = 0;
+
+
+
+
+//void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv,
+//		unique_lock<mutex> ulSync, sync_t* tSync)
+void PaillierCrypto::SkLE_s_4(out_t* tOut, skle_t* tSkle, int bit, bool bFirst, unsigned short idx, thp_t* tRecv)
+{
+	paillier_ciphertext_t *cM, *cB, *cG;
+	paillier_ciphertext_t *cE, *cC, *cK, *cU;
+	paillier_ciphertext_t  cT;
+	int SrtDat, iNum;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(cT.c, NULL);
+	#else
+	mpz_init2(cT.c, 2*GMP_N_SIZE*2);
+	#endif
+
+
+	cM = &(tSkle->cM);
+//	cD = &(tSkle->cD);
+	cB = &(tSkle->cB);
+	cG = &(tSkle->cG);
+	iNum = bFirst ? tOut->iRan[idx+1]-tOut->iRan[idx] : tOut->iRan2[idx+1]-tOut->iRan2[idx];
+	SrtDat = bFirst ? tOut->iRan[idx]  : tOut->iRan2[idx];			// 각 thread의 data 시작점
+
+	///////////////////////// Step 4 /////////////////////////
+
+	for (int i=0 ; i<iNum ; i++) {
+		//iTidx = bFirst ? tOut->iRan[idx]+i  : tOut->iRan2[idx]+i;
+		cE = bFirst ? &(tOut->cSbit[i][bit]) : &(tOut->cFbit[i][bit]);
+		cC = &(tSkle->cC[i]);
+		cK = &(tSkle->cK[i]);
+		cU = &(tSkle->cU[i]);
+
+		#ifdef _DEBUG_SkLE_s
+		printf("[DH-%03d] *** (step 4) [%d, %d] C, K ***\n", (int)idx, SrtDat+i, bit);
+		#endif
+
+		// T = SM(U[i], Beta)
+		//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+		SecMul(&cT, cU, cB, idx, tRecv);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("T = SM(U[i], Beta) \t", &cT, idx);
+		#endif
+
+		// K[i] = K[i] * T
+		paillier_mul(mPubKey, cK, cK, &cT);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("K[i] = K[i] * T \t\t", cK, idx);
+		#endif
+
+		// T = SM(e[i,j], Gamma)
+		//SecMul(&cTmp1i, &(tSkle->cCan[i]), &cE[j], idx, tRecv);
+		SecMul(&cT, cE, cG, idx, tRecv);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("T = SM(e[i,j], Gamma) \t", &cT, idx);
+		#endif
+
+		// T = M * T
+		paillier_mul(mPubKey, &cT, cM, &cT);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("T = M * T \t\t\t", &cT, idx);
+		#endif
+
+		// C[i] = SM(C[i], T)
+		SecMul(cC, cC, &cT, idx, tRecv);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("C[i] = SM(C[i], T) \t", cC, idx);
+		#endif
+	}
+
+	// print Res, Can for debugging
+	//printf("[DH-%03d] %d-th bit Can : ", idx, j);	for (int i=0 ; i<iNum ; i++)	DebugDecBit(&(tSkle->cCan[i]));		printf("\n");
+	//printf("[DH-%03d] %d-th bit Res : ", idx, j);	for (int i=0 ; i<iNum ; i++)	DebugDecBit(&(tSkle->cIRes[i]));		printf("\n");
+
+
+
+	#ifdef _DEBUG_Assert
+	// checking the allocated size  of GMP
+	assert(cTmp1i.c->_mp_alloc == 2*GMP_N_SIZE*2);
+	assert(cTmp2i.c->_mp_alloc <= 2*GMP_N_SIZE*2);
+	assert(cTmp3i.c->_mp_alloc <= 2*GMP_N_SIZE*2);
+	#endif
+
+	return;
+}
+
+void PaillierCrypto::SkLE_s_5(out_t* tOut, skle_t* tSkle, bool bFirst, unsigned short idx)
+{
+	int iNum = bFirst ? tOut->iRan[idx+1]-tOut->iRan[idx] : tOut->iRan2[idx+1]-tOut->iRan2[idx];
+
+	for (int i=0 ; i<iNum ; i++) {			// i = 1 ~ n
+		// K[i] = K[i] * C[i]
+		paillier_mul(mPubKey, (tSkle->cK)+i, (tSkle->cK)+i, (tSkle->cC)+i);
+		#ifdef _DEBUG_SkLE_s
+		DebugDec("K[i] = K[i] * C[i] \t", (tSkle->cK)+i, idx);
+		#endif
+	}
+
+	return;
+}
+
+//void PaillierCrypto::SkLE_s_5(out_t* tOut, in_t *tIn, unsigned short idx)
+//{
+//	paillier_plaintext_t pC;
 //
 //	#ifdef _DEBUG_INIT_1
-//	mpz_inits(p0.m, pR.m, pT.m, cGamma1.c, cBeta.c, cP.c, cT.c, cM->c, cD->c, c1.c, NULL);
-//	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
-//		mpz_inits(cW[j].c, cX[j].c, cY[j].c, NULL);
-////		mpz_init(cU[j].c);
+//	mpz_init(pC.m);
 //	#else
-//	mpz_init2(p0.m, GMP_N_SIZE+1);
-//	mpz_init2(pR.m, GMP_N_SIZE+1);
-//	mpz_init2(pT.m, GMP_N_SIZE+1);
-//	mpz_init2(cGamma.c, 3*GMP_N_SIZE);
-//	mpz_init2(cP.c, 3*GMP_N_SIZE);
-//	mpz_init2(cT.c, 3*GMP_N_SIZE);
-//	mpz_init2(cM.c, 3*GMP_N_SIZE);
-//	mpz_init2(cD.c, 3*GMP_N_SIZE);
-//	mpz_init2(cV.c, 3*GMP_N_SIZE);
-//	mpz_init2(cB.c, 3*GMP_N_SIZE);
-//	mpz_init2(c1.c, 3*GMP_N_SIZE);
-//	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
-//		mpz_init2(cU[j].c, 3*GMP_N_SIZE);
+//	mpz_init2(pC.m, 1);
 //	#endif
 //
-//	srand((unsigned int)time(0));
-//
-//	#ifdef _DEBUG_Comparison
-//	DebugDec("input Cnt'\t\t\t", cCnt, idx);
-//	DebugOut("input Parameter k\t\t", iK, idx);
-//	printf("[DH] < Cnt_m-1, ..., Cnt_1, Cnt_0 > (Decrypted Count)\n");
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
-//		DebugDecBit(&cCntbit[j]);
-//		if (j%8==0)		printf("\t");
-//		if (j%64==0)	printf("\n");
+//	for (int i=tOut->iRan2[idx] ; i<tOut->iRan2[idx+1] ; i++) {
+//		mpz_set_ui(pC.m, tIn->Class[i]);
+//		// mc'_j = mf'_j^(c_j)
+//		paillier_exp(mPubKey, &(tOut->cMc[i]), &(tOut->cFRes[i]), &pC);
 //	}
-//	printf("\n");
-//	printf("[DH] < ~Cnt_m-1, ..., ~Cnt_1, ~Cnt_0 > (Decrypted ~Count)\n");
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
-//		DebugDecBit(&cCntCom[j]);
-//		if (j%8==0)		printf("\t");
-//		if (j%64==0)	printf("\n");
-//	}
-//	printf("\n");
-//	printf("[DH] < k_m-1, ..., k_1, k_0 > (Decrypted Parameter k)\n");
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
-//		printf("%d", iKbit[j]);
-//		if (j%8==0)		printf("\t");
-//		if (j%64==0)	printf("\n");
-//	}
-//	printf("\n");
-//	#endif
-//
-//	mpz_set_ui(p0.m, 0);
-//	mpz_set_ui(cP.c, 1);
-//	mpz_set_ui(cY[DATA_NUMBER_LENGTH].c, 1);			//?? y_l'=E(0) 맞나?
-//
-//	mpz_set_ui(pT.m, 1);						// 임시변수로서 pT를 사용함.
-//	paillier_enc(&c1, mPubKey, &pT, paillier_get_rand_devurandom);	// problem
-//	#ifdef _DEBUG_EncryptedLSB
-//	//DebugOut("E(1)", c1->c, idx);
-//	DebugDec("r\t\t\t\t", &c1, idx);
-//	#endif
-//
-//	// alpha = {0, 1}
-//	iAlpha = rand() % 2;
-//	#ifdef _DEBUG_Comparison
-//	DebugOut("alpha\t\t\t\t\t\t\t", iAlpha, idx);
-//	#endif
-//
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {			//?? 첫번째와 두번째 길이가 달라질 것 같은데.
-//		if (iAlpha==0) {
-//			// E(T) = E(~Cnt_j * k_j) : E(0) or E(~Cnt_j)
-//			if (iKbit[j]==0)		paillier_enc(&cT, mPubKey, &p0, paillier_get_rand_devurandom);
-//			else					mpz_set(cT.c, cCntCom[j].c);
-//			#ifdef _DEBUG_Comparison
-//			DebugOut("Parameter k_j\t\t\t\t\t\t", iKbit[j], idx);
-//			DebugDec("E(T) = E(~Cnt_j * k_j) : E(0) or E(~Cnt_j) (Alpha=0)\t", &cT, idx);
-//			#endif
-//		}
-//		else {
-//			// E(T) = E(Cnt_j * ~k_j) : E(Cnt_j) or E(0)
-//			if (iKbit[j]==0)		mpz_set(cT.c, cCntbit[j].c);
-//			else					paillier_enc(&cT, mPubKey, &p0, paillier_get_rand_devurandom);
-//			#ifdef _DEBUG_Comparison
-//			DebugOut("Parameter k_j\t\t\t\t\t\t", iKbit[j], idx);
-//			DebugDec("E(T) = E(Cnt_j * ~k_j) : E(Cnt_j) or E(0) (Alpha=1)\t", &cT, idx);
-//			#endif
-//		}
-//
-//		// E(W) = E(W)^r
-//		mpz_urandomm(pR.m, state, mPubKey->n);
-//		paillier_exp(mPubKey, &cW[j], &cT, &pR);
-//		#ifdef _DEBUG_Comparison
-//		DebugDec("E(W_j) = E(T)^r \t\t\t\t", &cW[j], idx);
-//		#endif
-//
-//		// E(X_j) = E(S_j xor k_j) : E(Cnt_j) or E(~Cnt_j)
-//		if (iKbit[j]==0)		mpz_set(cX[j].c, cCntbit[j].c);
-//		else					mpz_set(cX[j].c, cCntCom[j].c);
-//		#ifdef _DEBUG_Comparison
-//		DebugOut("Parameter k_j\t\t\t\t\t\t", iKbit[j], idx);
-//		DebugDec("E(X_j) = E(S_j xor k_j) : E(Cnt_j) or E(~Cnt_j)\t", &cX[j], idx);
-//		#endif
-//
-//		// E(Y_j) = E(Y_j+1)^r * E(X_j)
-//		mpz_urandomm(pR.m, state, mPubKey->n);
-//		paillier_exp(mPubKey, &cY[j], &cY[j+1], &pR);
-//		paillier_mul(mPubKey, &cY[j], &cY[j], &cX[j]);
-//		#ifdef _DEBUG_Comparison
-//		DebugDec("E(U_j) = E(U_j+1)^r * E(T)\t\t\t\t", &cY[j], idx);
-//		#endif
-//	}
-//
-//	// E(Gamma) = SZP( E(x_all) )
-//	mpz_set_ui(cGamma1.c, 1);			//?? E(Gamma1)=E(0) 맞나?
-//	#ifdef _DEBUG_Comparison
-//	DebugDec("E(Gamma) = SZP( E(x_all) \t\t\t\t\t", &cGamma1, idx);
-//	#endif
-//
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
-//		// E(T) = E(y_j) * E(N-1)
-//		paillier_mul(mPubKey, &cT, &cY[j], &(tPre->cN1));
-//		#ifdef _DEBUG_Comparison
-//		DebugDec("E(T) = E(Y_j) * E(N-1)\t\t\t\t", &cT, idx);
-//		#endif
-//
-//		// E(X_j) = E(T)^r_j * E(W_j) : 예전 메모리 활용
-//		mpz_urandomm(pR.m, state, mPubKey->n);
-//		paillier_exp(mPubKey, &cT, &cT, &pR);
-//		paillier_mul(mPubKey, &cX[j], &cT, &cW[j]);
-//		#ifdef _DEBUG_Comparison
-//		DebugDec("E(X_j) = E(T)^r_j * E(W_j)\t\t\t\t", &cX[j], idx);
-//		#endif
-//	}
-//
-//	//	// E(V) = E(r(Cnt-k))
-//	//	if (iK!=1)	paillier_mul(mPubKey, &cV, cCnt, &(tPre->cNk));		// data의 SkLE_s
-//	//	else 		paillier_mul(mPubKey, &cV, cCnt, &(tPre->cN1));		// frequency의 SkLE_s (k=1)
-//	//	#ifdef _DEBUG_Comparison
-//	//	DebugDec("E(Cnt-k)\t\t\t\t\t\t", &cV, idx);
-//	//	#endif
-//	//	mpz_urandomm(pR.m, state, mPubKey->n);
-//	//	paillier_exp(mPubKey, &cV, &cV, &pR);
-//	//	#ifdef _DEBUG_Comparison
-//	//	DebugDec("E(V) = E(r(Cnt-k))\t\t\t\t\t", &cV, idx);
-//	//	#endif
-//
-//	// ** generate random permutation (Fisher?Yates shuffle Algorithm) ** //
-//
-//	// Phi permutation
-//	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
-//		uiPhi[i] = i;
-//	for (int i=DATA_NUMBER_LENGTH-1 ; i>0 ; i--) {
-//		k = rand() % (i+1);
-//		uiTmp = uiPhi[i];
-//		uiPhi[i] = uiPhi[k];
-//		uiPhi[k] = uiTmp;
-//	}
-//
-//	#ifdef _DEBUG_Comparison
-//	printf("[DH-%03d] Phi permutation : ", idx);
-//	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
-//		printf(" %d ", uiPhi[i]);
-//	std::cout << std::endl;
-//	#endif
-//
-//	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
-//	    // send Phi( X_all )
-//		paillier_ciphertext_to_bytes(bX, ENC_SIZE, &cX[uiPhi[j]]);
-//		SetSendMsg(ucSendPtr, bX, idx, COM_SVR, ENC_SIZE);
-//		#ifdef _DEBUG_SVR
-//	    DebugCom("X (Hex):\t\t\t", ucSendPtr, ENC_SIZE+HED_SIZE, idx);
-//		#endif
-//
-////    mSendMtx->lock();
-////    mSendQueue->push(ucSendPtr);
-////    mSendMtx->unlock();
-////    mSendCV->notify_all();		// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
-//
-//		try {
-//			mSSocket->send(ucSendPtr, sizeof(ucSendPtr));
-//		}
-//		catch ( SocketException& e ) {
-//			std::cout << "Exception: " << e.description() << std::endl;
-//		}
-//	}
-//
-//	// E(D) = E(1) * gamma^(N-1)
-//    // 데이터 전송 직후 여유시간에 계산
-//
-//	// gamma^(N-1)
-//	paillier_exp(mPubKey, &cD, &cG, &(tPre->pN1));			// 임시 변수로서 cRY를 사용함.
-//	#ifdef _DEBUG_EncryptedLSB
-//	//DebugOut("Gamma^(N-1)", cD.c, idx);
-//	DebugDec("Gamma^(N-1)\t\t\t", &cD, idx);
-//	#endif
-//
-//	// E(D) = E(1) * gamma^(N-1)
-//	paillier_mul(mPubKey, &cD, &c1, &cD);
-//	#ifdef _DEBUG_EncryptedLSB
-//	//DebugOut("E(D) = E(1) * gamma^(N-1)", cD->c, idx);
-//	DebugDec("E(D) = E(1) * gamma^(N-1)\t", cD, idx);
-//	#endif
-//
-//
-//	ulRecv.lock();
-//	tRecv->cv.wait(ulRecv, [&] {return tRecv->pa[idx] != NULL;});
-//	ucRecvPtr = tRecv->pa[idx];	tRecv->pa[idx] = NULL;
-//	ulRecv.unlock();
-//
-//	// receive E(beta)
-//	sLen = Byte2Short(ucRecvPtr+HED_LEN);
-//	#ifdef _DEBUG_Comparison
-//    DebugCom("Beta' (Hex)\t\t\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx);
-//	#endif
 //
 //	#ifdef _DEBUG_Assert
-//    assert((*(ucRecvPtr+2)==COM_CMP1)&&(sLen==1));
+//	assert(pC.m->_mp_alloc == 1);
 //	#endif
 //
-//	paillier_ciphertext_from_bytes(&cBeta, ucRecvPtr+HED_SIZE, ENC_SIZE);
-//	#ifdef _DEBUG_EncryptedLSB
-//	//DebugOut("beta' (Copied)", cBeta.c, idx);
-//	DebugDec("Beta' (Copied)\t\t", cBeta, idx);
-//	#endif
-//
-//	if (iAlpha==0) {
-//		mpz_set(cM->c, cBeta.c);
-//		#ifdef _DEBUG_Comparison
-//		DebugDec("E(M) = E(Beta) \t\t\t\t", cM, idx);
-//		#endif
-//	}
-//	else {
-//		// beta^(N-1)
-//		paillier_exp(mPubKey, &cBeta, &cBeta, &(tPre->pN1));			// 임시 변수로서 cRY를 사용함.
-//		#ifdef _DEBUG_EncryptedLSB
-//		//DebugOut("Beta^(N-1)", cBeta.c, idx);
-//		DebugDec("Beta^(N-1)\t\t\t", &cBeta, idx);
-//		#endif
-//
-//		// E(M) = E(1) * beta^(N-1)
-//		paillier_mul(mPubKey, &cBeta, &c1, &cBeta);
-//		#ifdef _DEBUG_EncryptedLSB
-//		//DebugOut("E(M) = E(1) * Beta^(N-1)", cBeta->c, idx);
-//		DebugDec("E(M) = E(1) * beta^(N-1)\t", cBeta, idx);
-//		#endif
-//	}
-//
-//	// E(D) = E(1) * gamma^(N-1)
-//    // (위에서 계산) 데이터 전송 직후 계산
-//
-//	// checking the allocated size  of GMP
-//	#ifdef _DEBUG_Assert
-//	assert(   p0.m->_mp_alloc ==   1);
-//	assert(   pR.m->_mp_alloc ==   GMP_N_SIZE);
-//	assert(   cP.c->_mp_alloc == 2*GMP_N_SIZE);
-//	assert(   cT.c->_mp_alloc == 2*GMP_N_SIZE+1);
-////	assert(   cV.c->_mp_alloc == 2*GMP_N_SIZE*2);
-////	assert(cU[0].c->_mp_alloc == 2*GMP_N_SIZE*2);
-//	#endif
-//
-//	// COM_CMP1 명령에서 (Cnt==k)일 경우에 대한 Recv Buff 초기화
-//	// for loop의 COM_CMP2 명령 완료 후 break 되었을 경우에 대한 Recv Buff 초기화
-//    memset(ucRecvPtr, 0, HED_SIZE+ENC_SIZE);
-//	ucRecvPtr[1] = 0xff;
-//
-//	return iRes;
-//
-//
-//
-////	if (iAlpha == 0) {
-////		mpz_set(cGamma->c, cBeta.c);
-////		#ifdef _DEBUG_Comparison
-////		//DebugOut("(alpha=0) Gamma = E(Beta)", cGamma->c, idx);
-////		DebugDec("(alpha=0) Gamma = E(Beta)\t\t\t\t", cGamma, idx);
-////		#endif
-////	}
-////	else {		// if (iAlpha == 1)
-////		paillier_exp(mPubKey, &cT, &cBeta, &(tPre->pN1));		// 임시변수로서 cTmp를 사용함.
-////		paillier_mul(mPubKey, cGamma, &(tPre->c1), &cT);
-////		#ifdef _DEBUG_Comparison
-////		//DebugOut("(alpha=1) Gamma = E(1-Beta)", cGamma->c, idx);
-////		DebugDec("(alpha=1) Gamma = E(1-Beta)\t\t\t\t", cGamma, idx);
-////		#endif
-////	}
-////
-////	#ifdef _DEBUG_Assert
-////	assert(cBeta.c->_mp_alloc == 2*GMP_N_SIZE);
-////	#endif
-////
-////
-////
-////
-////	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {
-////		// COM_CMP1 명령 완료에 대한 Recv Buff 초기화
-////		// for loop의 COM_CMP2 명령 완료에 대한 Recv Buff 초기화 (break 되었을 경우는 제외)
-////		memset(ucRecvPtr, 0, HED_SIZE+ENC_SIZE);
-////		ucRecvPtr[1] = 0xff;
-////
-////		k = uiPhi[i];
-////		#ifdef _DEBUG_Comparison
-////		DebugOut("x-th bit\t\t\t\t\t\t", k, idx);
-////		#endif
-////
-////		// send U'
-////		paillier_ciphertext_to_bytes(bV, ENC_SIZE, &cU[k]);
-////		SetSendMsg(ucSendPtr, bV, idx, COM_CMP2, ENC_SIZE);
-////		#ifdef _DEBUG_Comparison
-////		DebugCom("U_k' (Hex)\t\t\t\t\t\t", ucSendPtr, ENC_SIZE+HED_SIZE, idx);
-////		#endif
-////
-////		//    mSendMtx->lock();
-////		//    mSendQueue->push(ucSendPtr);
-////		//    mSendMtx->unlock();
-////		//    mSendCV->notify_all();		// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
-////
-////		try {
-////			mSSocket->send(ucSendPtr, sizeof(ucSendPtr));
-////		}
-////		catch ( SocketException& e ) {
-////			std::cout << "Exception: " << e.description() << std::endl;
-////		}
-////
-////		ulRecv.lock();
-////		tRecv->cv.wait(ulRecv, [&] {return tRecv->pa[idx] != NULL;});
-////		ucRecvPtr = tRecv->pa[idx];	tRecv->pa[idx] = NULL;
-////		ulRecv.unlock();
-////
-////		// beta'
-////		sLen = Byte2Short(ucRecvPtr+HED_LEN);
-////		#ifdef _DEBUG_Comparison
-////		DebugCom("Beta' (Hex)\t\t\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx);
-////		#endif
-////
-////		#ifdef _DEBUG_Assert
-////		assert((*(ucRecvPtr+2)==COM_CMP2)&&((sLen==1)||(sLen==ENC_SIZE)));
-////		#endif
-////
-////		if (sLen == ENC_SIZE) {			// Beta = E(0) or E(1)
-////			paillier_ciphertext_t cBeta;
-////			#ifdef _DEBUG_INIT_1
-////			mpz_init(cBeta.c);
-////			#else
-////			mpz_init2(cBeta.c, 2*GMP_N_SIZE);
-////			#endif
-////			paillier_ciphertext_from_bytes(&cBeta, ucRecvPtr+HED_SIZE, ENC_SIZE);
-////			#ifdef _DEBUG_Comparison
-////			DebugOut("Beta' (Copied)\t\t\t\t\t\t", cBeta.c, idx);
-////			DebugDec("Beta' (Copied)\t\t\t\t\t\t", &cBeta, idx);
-////			#endif
-////			iRes = 1;
-////
-////			if (iAlpha == 0) {
-////				mpz_set(cGamma->c, cBeta.c);
-////				#ifdef _DEBUG_Comparison
-////				//DebugOut("(alpha=0) Gamma = E(Beta)", cGamma->c, idx);
-////				DebugDec("(alpha=0) Gamma = E(Beta)\t\t\t\t", cGamma, idx);
-////				#endif
-////			}
-////			else {		// if (iAlpha == 1)
-////				paillier_exp(mPubKey, &cT, &cBeta, &(tPre->pN1));		// 임시변수로서 cTmp를 사용함.
-////				paillier_mul(mPubKey, cGamma, &(tPre->c1), &cT);
-////				#ifdef _DEBUG_Comparison
-////				//DebugOut("(alpha=1) Gamma = E(1-Beta)", cGamma->c, idx);
-////				DebugDec("(alpha=1) Gamma = E(1-Beta)\t\t\t\t", cGamma, idx);
-////				#endif
-////			}
-////
-////			#ifdef _DEBUG_Assert
-////			assert(cBeta.c->_mp_alloc == 2*GMP_N_SIZE);
-////			#endif
-////
-////			break;
-////		}
-////		else if ((sLen==1)&&(*(ucRecvPtr+HED_SIZE)==1)) {	// continue
-////			iRes = 1;
-////		}
-////		else
-////			assert(0);
-////	}
+//	return;
 //}
+
+//int PaillierCrypto::Comparison(paillier_ciphertext_t* cGamma, paillier_ciphertext_t* cS, paillier_ciphertext_t* cSb,
+//		paillier_ciphertext_t* cSc, int iK, int* iKb, pre_t *tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
+int PaillierCrypto::SCI(paillier_ciphertext_t* cM, paillier_ciphertext_t* cD, paillier_ciphertext_t* cSb,
+		paillier_ciphertext_t* cSc, int* iKb, pre_t *tPre, unsigned short idx, thp_t* tRecv)
+{
+	std::unique_lock<std::mutex> ulRecv(tRecv->m, std::defer_lock);
+	unsigned char* ucRecvPtr=NULL;
+	unsigned char ucSendPtr[HED_SIZE+DATA_NUMBER_LENGTH*ENC_SIZE]={0,};
+	unsigned char bV[ENC_SIZE]={0,};
+	short sLen;
+
+	int iAlpha ;
+	paillier_plaintext_t p0, pR;
+	paillier_ciphertext_t cT, cG, cB ;
+	paillier_ciphertext_t cW[DATA_NUMBER_LENGTH], cX[DATA_NUMBER_LENGTH], cY[DATA_NUMBER_LENGTH+1];
+	unsigned int uiR[DATA_SIZE], uiT, k;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(p0.m, pR.m, cT.c, cG.c, cB.c, NULL);
+	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
+		mpz_inits(cW[j].c, cX[j].c, cY[j].c, NULL);
+	mpz_inits(cY[DATA_NUMBER_LENGTH].c, NULL);
+	#else
+	mpz_init2(p0.m, GMP_N_SIZE+1);
+	mpz_init2(pR.m, GMP_N_SIZE+1);
+	mpz_init2(cT.c, 3*GMP_N_SIZE);
+	mpz_init2(cG.c, 3*GMP_N_SIZE);
+	mpz_init2(cB.c, 3*GMP_N_SIZE);
+	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++) {
+		mpz_init2(cW[j].c, 3*GMP_N_SIZE);
+		mpz_init2(cX[j].c, 3*GMP_N_SIZE);
+		mpz_init2(cY[j].c, 3*GMP_N_SIZE);
+	}
+	mpz_init2(cY[DATA_NUMBER_LENGTH].c, 3*GMP_N_SIZE);
+	#endif
+
+	srand((unsigned int)time(0));
+
+	#ifdef _DEBUG_SCI
+	printf("[DH] Decrypted S bit : \t");
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		DebugDecBit(cSb+j);
+		if (j%8==0)		printf("\t");
+		if (j%64==0)		printf("\n");
+	}
+//	printf("\n");
+	printf("[DH] Decrypted ~S bit : \t");
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		DebugDecBit(cSc+j);
+		if (j%8==0)		printf("\t");
+		if (j%64==0)		printf("\n");
+	}
+//	printf("\n");
+	printf("[DH] Decrypted k bit : \t");
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		printf("%d", iKb[j]);
+		if (j%8==0)		printf("\t");
+		if (j%64==0)		printf("\n");
+	}
+//	printf("\n");
+	printf("[DH] Decrypted ~k bit : \t");
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		printf("%d", 1-iKb[j]);
+		if (j%8==0)		printf("\t");
+		if (j%64==0)		printf("\n");
+	}
+//	printf("\n");
+	#endif
+
+	mpz_set_ui(p0.m, 0);
+	mpz_set_ui(cY[DATA_NUMBER_LENGTH].c, 1);			// Y[l] = E(0)
+
+
+	// alpha = {0, 1}
+	iAlpha = rand() % 2;
+	#ifdef _DEBUG_SCI
+	DebugOut("Alpha = \t\t\t\t", iAlpha, idx);
+	#endif
+
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {			//?? 첫번째와 두번째 길이가 달라질 것 같은데.
+		if (iAlpha==0) {
+			// E(T) = E(~S[j] * k[j]) : E(0) or E(~S[j])
+			if (iKb[j]==0)		paillier_enc(&cT, mPubKey, &p0, paillier_get_rand_devurandom);
+			else					mpz_set(cT.c, cSc[j].c);
+			#ifdef _DEBUG_SCI
+			DebugOut("(Alpha=0) Parameter k[j] : \t\t\t\t", iKb[j], idx);
+			DebugDec("(Alpha=0) E(T) = E(~S[j] * k[j]) : E(0) or E(~S[j]) \t", &cT, idx);
+			#endif
+		}
+		else {
+			// E(T) = E(S[j] * ~k[j]) : E(S[j]) or E(0)
+			if (iKb[j]==0)		mpz_set(cT.c, cSb[j].c);
+			else					paillier_enc(&cT, mPubKey, &p0, paillier_get_rand_devurandom);
+			#ifdef _DEBUG_SCI
+			DebugOut("(Alpha=1) Parameter k[j] : \t\t\t", iKb[j], idx);
+			DebugDec("(Alpha=1) E(T) = E(S[j] * ~k[j]) : E(S[j]) or E(0) \t", &cT, idx);
+			#endif
+		}
+
+		// E(W[j]) = E(T)^r
+		mpz_urandomm(pR.m, state, mPubKey->n);
+		paillier_exp(mPubKey, cW+j, &cT, &pR);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(W[j]) = E(T)^r \t\t\t\t\t\t", cW+j, idx);
+		#endif
+
+		// E(X[j]) = E(S[j] xor k[j]) : E(S[j]) or E(~S[j])
+		if (iKb[j]==0)		mpz_set(cX[j].c, cSb[j].c);
+		else					mpz_set(cX[j].c, cSc[j].c);
+		#ifdef _DEBUG_SCI
+		DebugOut("Parameter k[j] = \t\t\t\t\t\t", iKb[j], idx);
+		DebugDec("E(X[j]) = E(S[j] xor k[j]) : E(S[j]) or E(~S[j]) \t", cX+j, idx);
+		#endif
+
+		// E(Y[j]) = E(Y[j+1])^r * E(X[j])
+		mpz_urandomm(pR.m, state, mPubKey->n);
+		paillier_exp(mPubKey, &cT, cY+j+1, &pR);
+		paillier_mul(mPubKey, cY+j, &cT, cX+j);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(Y[j]) = E(Y[j+1])^r * E(X[j]) \t\t\t\t", cY+j, idx);
+		#endif
+	}
+
+	// E(G) = SZP( E(x[all]) )
+	SZP(&cG, cX, tPre, idx, tRecv);
+	#ifdef _DEBUG_SCI
+	DebugDec("E(G) = SZP( E(x_all) ) \t\t\t\t\t", &cG, idx);
+	#endif
+
+	if (iAlpha==0) {
+		// E(Y[0]) = E(Y[0]) * E(G)
+		paillier_mul(mPubKey, &cY[0], &cY[0], &cG);
+		#ifdef _DEBUG_SCI
+		DebugDec("(Alpha=0) E(Y[0]) = E(Y[0]) * E(G) \t\t\t\t", &cY[0], idx);
+		#endif
+	}
+
+	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		// E(T) = E(y[j]) * E(N-1)
+		paillier_mul(mPubKey, &cT, cY+j, &(tPre->cN1));
+		#ifdef _DEBUG_SCI
+		DebugDec("E(T) = E(Y[j]) * E(N-1)\t\t\t\t", &cT, idx);
+		#endif
+
+		// E(X[j]) = E(T)^r * E(W[j]) : 예전 메모리 활용
+		mpz_urandomm(pR.m, state, mPubKey->n);
+		paillier_exp(mPubKey, &cT, &cT, &pR);
+		paillier_mul(mPubKey, cX+j, &cT, cW+j);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(U[j]) = E(T)^r * E(W[j]) \t\t\t\t", cX+j, idx);
+		#endif
+	}
+
+	// ** generate random permutation (Fisher-Yates shuffle Algorithm) ** //
+
+	// Phi permutation
+	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
+		uiR[i] = i;
+	for (int i=DATA_NUMBER_LENGTH-1 ; i>0 ; i--) {
+		k = rand() % (i+1);
+		uiT = uiR[i];
+		uiR[i] = uiR[k];
+		uiR[k] = uiT;
+	}
+
+	#ifdef _DEBUG_SCI
+	printf("[DH-%03d] Phi permutation : ", idx);
+	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
+		printf(" %d ", uiR[i]);
+	std::cout << std::endl;
+	#endif
+
+	// send Phi( V_all )
+	paillier_ciphertext_to_bytes(bV, ENC_SIZE, &cX[uiR[0]]);
+	SetSendMsg(ucSendPtr, bV, idx, COM_SCI, ENC_SIZE);
+	for (int j=1 ; j<DATA_NUMBER_LENGTH ; j++) {
+		paillier_ciphertext_to_bytes(bV, ENC_SIZE, &cX[uiR[j]]);
+		memcpy(ucSendPtr+HED_SIZE+(j*ENC_SIZE), bV, ENC_SIZE);
+	}
+	#ifdef _DEBUG_SCI
+	DebugCom("V (Hex):\t\t\t", ucSendPtr, HED_SIZE+(DATA_NUMBER_LENGTH*ENC_SIZE), idx);
+	#endif
+
+//    mSendMtx->lock();
+//    mSendQueue->push(ucSendPtr);
+//    mSendMtx->unlock();
+//    mSendCV->notify_all();		// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
+
+	try {
+		mSSocket->send(ucSendPtr, sizeof(ucSendPtr));
+	}
+	catch ( SocketException& e ) {
+		std::cout << "Exception: " << e.description() << std::endl;
+	}
+
+	// E(D) = E(1) * G^(N-1) : 데이터 전송 직후 여유시간에 계산
+	paillier_exp(mPubKey, cD, &cG, &(tPre->pN1));
+	paillier_mul(mPubKey, cD, &(tPre->c1), cD);
+	#ifdef _DEBUG_EncryptedLSB
+	//DebugOut("E(D) = E(1) * G^(N-1) \t", cD->c, idx);
+	DebugDec("E(D) = E(1) * G^(N-1) \t", cD, idx);
+	#endif
+
+	ulRecv.lock();
+	tRecv->cv.wait(ulRecv, [&] {return tRecv->pa[idx] != NULL;});
+	ucRecvPtr = tRecv->pa[idx];	tRecv->pa[idx] = NULL;
+	ulRecv.unlock();
+
+	// receive E(beta)
+	sLen = Byte2Short(ucRecvPtr+HED_LEN);
+	#ifdef _DEBUG_SCI
+    DebugCom("Beta' (Hex)\t\t\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx);
+	#endif
+
+	#ifdef _DEBUG_Assert
+    assert((*(ucRecvPtr+2)==COM_CMP1)&&(sLen==1));
+	#endif
+
+	paillier_ciphertext_from_bytes(&cB, ucRecvPtr+HED_SIZE, ENC_SIZE);
+	#ifdef _DEBUG_EncryptedLSB
+	//DebugOut("beta' (Copied)", cB.c, idx);
+	DebugDec("Beta' (Copied)\t\t", cB, idx);
+	#endif
+
+	if (iAlpha==0) {
+		// E(M) = E(B)
+		mpz_set(cM->c, cB.c);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(M) = E(B) \t\t\t\t", cM, idx);
+		#endif
+	}
+	else {
+		// E(M) = E(1) * E(B)^(N-1)
+		paillier_exp(mPubKey, &cB, &cB, &(tPre->pN1));
+		paillier_mul(mPubKey, cM, &(tPre->c1), &cB);
+		#ifdef _DEBUG_SCI
+		//DebugOut("E(M) = E(1) * Beta^(N-1)", cB->c, idx);
+		DebugDec("E(M) = E(1) * beta^(N-1) \t", cM, idx);
+		#endif
+	}
+
+	// E(D) = E(1) * E(G)^(N-1) : (위에서 계산) 데이터 전송 직후 계산
+
+
+	// checking the allocated size  of GMP
+	#ifdef _DEBUG_Assert
+	assert(   p0.m->_mp_alloc ==   1);
+	assert(   pR.m->_mp_alloc ==   GMP_N_SIZE);
+	assert(   cP.c->_mp_alloc == 2*GMP_N_SIZE);
+	assert(   cT.c->_mp_alloc == 2*GMP_N_SIZE+1);
+//	assert(   cV.c->_mp_alloc == 2*GMP_N_SIZE*2);
+//	assert(cU[0].c->_mp_alloc == 2*GMP_N_SIZE*2);
+	#endif
+
+	// COM_CMP1 명령에서 (Cnt==k)일 경우에 대한 Recv Buff 초기화 ??
+	// for loop의 COM_CMP2 명령 완료 후 break 되었을 경우에 대한 Recv Buff 초기화 ??
+    memset(ucRecvPtr, 0, HED_SIZE+ENC_SIZE);
+	ucRecvPtr[1] = 0xff;
+
+	return 0;
+}
+
+
+int PaillierCrypto::SZP(paillier_ciphertext_t* cG, paillier_ciphertext_t* cX, pre_t *tPre, unsigned short idx, thp_t* tRecv)
+{
+	std::unique_lock<std::mutex> ulRecv(tRecv->m, std::defer_lock);
+	unsigned char* ucRecvPtr=NULL;
+	unsigned char ucSendPtr[HED_SIZE+DATA_NUMBER_LENGTH*ENC_SIZE]={0,};
+	unsigned char bD[ENC_SIZE]={0,};
+	short sLen;
+
+	int iAlpha;
+	paillier_ciphertext_t cT, cB;
+	paillier_plaintext_t pR;
+	paillier_ciphertext_t cC[DATA_NUMBER_LENGTH];
+	unsigned int uiR[DATA_SIZE], uiT, k;
+
+	#ifdef _DEBUG_INIT_1
+	mpz_inits(cT.c, pR.m, cB.c, NULL);
+	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
+		mpz_inits(cC[j].c, NULL);
+	#else
+	mpz_init2(cT.c, 3*GMP_N_SIZE);
+	mpz_init2(pR.m, GMP_N_SIZE+1);
+	mpz_init2(cB.c, 3*GMP_N_SIZE);
+	for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
+		mpz_init2(cU[j].c, 3*GMP_N_SIZE);
+	#endif
+
+	srand((unsigned int)time(0));
+
+	// alpha = {0, 1}
+	iAlpha = rand() % 2;
+	#ifdef _DEBUG_SCI
+	DebugOut("Alpha = \t\t\t\t\t\t\t", iAlpha, idx);
+	#endif
+
+	// initialize T
+	mpz_set_ui(cT.c, 1);
+
+	if (iAlpha==0) {
+		for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {			//?? 첫번째와 두번째 길이가 달라질 것 같은데.
+			// E(T) = E(1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2
+			for (int j=i+1 ; j<DATA_NUMBER_LENGTH ; j++)
+				paillier_mul(mPubKey, &cT, &cT, cX+j);
+			paillier_mul(mPubKey, &cT, &cT, &cT);
+			paillier_mul(mPubKey, &cT, cX+i, &cT);
+			paillier_mul(mPubKey, &cT, &(tPre->c1), &cT);
+			#ifdef _DEBUG_SCI
+			printf("[DH-%03d] *** (Alpha=0) [i=%d] ***\n", (int)idx, i);
+			DebugDec("(Alpha=0) E(S[i]) = E(1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2 \t", &cT, idx);
+			#endif
+
+			// E(C[i]) = E(T)^r
+			mpz_urandomm(pR.m, state, mPubKey->n);
+			paillier_exp(mPubKey, cC+i, &cT, &pR);
+			#ifdef _DEBUG_SCI
+			DebugDec("E(C[i]) = E(S[i])^r \t\t\t\t", cC+i, idx);
+			#endif
+		}
+	}
+	else {
+		// E(S[1]) = Sum_j=1~l E(X[j])
+		for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
+			paillier_mul(mPubKey, &cT, &cT, cX+j);
+		#ifdef _DEBUG_SCI
+		DebugDec("(Alpha=1) [i=1] E(S[1]) = Sum_j=1~l E(X[j]) \t", &cT, idx);
+		#endif
+
+		// E(C[1]) = E(S[1])^r
+		mpz_urandomm(pR.m, state, mPubKey->n);
+		paillier_exp(mPubKey, &cC[0], &cT, &pR);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(C[1]) = E(S[1])^r \t\t\t\t", &cC[0], idx);
+		#endif
+
+		for (int j=1 ; j<DATA_NUMBER_LENGTH ; j++) {
+			// E(C[j]) = E(r)
+			mpz_urandomm(cC[j].c, state, mPubKey->n);
+			#ifdef _DEBUG_SCI
+			DebugDec("E(C[j]) = E(r) \t\t\t\t", cC+j, idx);
+			#endif
+		}
+	}
+
+	// ** generate random permutation (Fisher-Yates shuffle Algorithm) ** //
+
+	// Phi permutation
+	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
+		uiR[i] = i;
+	for (int i=DATA_NUMBER_LENGTH-1 ; i>0 ; i--) {
+		k = rand() % (i+1);
+		uiT = uiR[i];
+		uiR[i] = uiR[k];
+		uiR[k] = uiT;
+	}
+
+	#ifdef _DEBUG_SCI
+	printf("[DH-%03d] Phi permutation : ", idx);
+	for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++)
+		printf(" %d ", uiR[i]);
+	std::cout << std::endl;
+	#endif
+
+    // send Phi( D_all )
+	paillier_ciphertext_to_bytes(bD, ENC_SIZE, &cC[uiR[0]]);
+	SetSendMsg(ucSendPtr, bD, idx, COM_SZP, ENC_SIZE);
+	for (int j=1 ; j<DATA_NUMBER_LENGTH ; j++) {
+		paillier_ciphertext_to_bytes(bD, ENC_SIZE, &cC[uiR[j]]);
+		memcpy(ucSendPtr+HED_SIZE+(j*ENC_SIZE), bD, ENC_SIZE);
+	}
+	#ifdef _DEBUG_SCI
+	DebugCom("D (Hex):\t\t\t", ucSendPtr, HED_SIZE+(DATA_NUMBER_LENGTH*ENC_SIZE), idx);
+	#endif
+
+//    mSendMtx->lock();
+//    mSendQueue->push(ucSendPtr);
+//    mSendMtx->unlock();
+//    mSendCV->notify_all();		// Communication thread가 아니라 PPkNN thread가 notify되는 것은 아닌지?
+
+	try {
+		mSSocket->send(ucSendPtr, sizeof(ucSendPtr));
+	}
+	catch ( SocketException& e ) {
+		std::cout << "Exception: " << e.description() << std::endl;
+	}
+
+	ulRecv.lock();
+	tRecv->cv.wait(ulRecv, [&] {return tRecv->pa[idx] != NULL;});
+	ucRecvPtr = tRecv->pa[idx];	tRecv->pa[idx] = NULL;
+	ulRecv.unlock();
+
+	// receive E(beta)
+	sLen = Byte2Short(ucRecvPtr+HED_LEN);
+	#ifdef _DEBUG_SCI
+    DebugCom("Beta' (Hex)\t\t\t\t\t\t", ucRecvPtr, sLen+HED_SIZE, idx);
+	#endif
+
+	#ifdef _DEBUG_Assert
+    assert((*(ucRecvPtr+2)==COM_CMP1)&&(sLen==1));
+	#endif
+
+	paillier_ciphertext_from_bytes(&cB, ucRecvPtr+HED_SIZE, ENC_SIZE);
+	#ifdef _DEBUG_EncryptedLSB
+	//DebugOut("beta' (Copied)", cB.c, idx);
+	DebugDec("Beta' (Copied)\t\t", cB, idx);
+	#endif
+
+	if (iAlpha==0) {
+		// E(G) = E(B)
+		mpz_set(cG->c, cB.c);
+		#ifdef _DEBUG_SCI
+		DebugDec("E(G) = E(B) \t\t\t\t", cG, idx);
+		#endif
+	}
+	else {
+		// E(M) = E(1) * E(B)^(N-1)
+		paillier_exp(mPubKey, &cT, &cB, &(tPre->pN1));
+		paillier_mul(mPubKey, cG, &(tPre->c1), &cT);
+		#ifdef _DEBUG_SCI
+		//DebugOut("E(G) = E(1) * Beta^(N-1)", cB->c, idx);
+		DebugDec("E(G) = E(1) * beta^(N-1) \t", cG, idx);
+		#endif
+	}
+
+
+	// checking the allocated size  of GMP
+	#ifdef _DEBUG_Assert
+	assert(   p0.m->_mp_alloc ==   1);
+	assert(   pR.m->_mp_alloc ==   GMP_N_SIZE);
+	assert(   cP.c->_mp_alloc == 2*GMP_N_SIZE);
+	assert(   cT.c->_mp_alloc == 2*GMP_N_SIZE+1);
+//	assert(   cV.c->_mp_alloc == 2*GMP_N_SIZE*2);
+//	assert(cU[0].c->_mp_alloc == 2*GMP_N_SIZE*2);
+	#endif
+
+	// COM_CMP1 명령에서 (Cnt==k)일 경우에 대한 Recv Buff 초기화 ??
+	// for loop의 COM_CMP2 명령 완료 후 break 되었을 경우에 대한 Recv Buff 초기화 ??
+    memset(ucRecvPtr, 0, HED_SIZE+ENC_SIZE);
+	ucRecvPtr[1] = 0xff;
+
+	return 0;
+}
 
 //void PaillierCrypto::CFTKD(out_t* tOut, in_t* tIn, pre_t* tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
 void PaillierCrypto::CFTKD(out_t* tOut, in_t* tIn, pre_t* tPre, unsigned short idx, thp_t* tRecv)
@@ -2036,29 +2348,6 @@ void PaillierCrypto::CFTKD(out_t* tOut, in_t* tIn, pre_t* tPre, unsigned short i
 	assert(	  cTmp1.c->_mp_alloc == 2*GMP_N_SIZE*2);
 	assert(		 cW.c->_mp_alloc == 2*GMP_N_SIZE);
 	assert(cT[0][0].c->_mp_alloc == 2*GMP_N_SIZE*2);
-	#endif
-
-	return;
-}
-
-void PaillierCrypto::ComputeMc(out_t* tOut, in_t *tIn, unsigned short idx)
-{
-	paillier_plaintext_t pC;
-
-	#ifdef _DEBUG_INIT_1
-	mpz_init(pC.m);
-	#else
-	mpz_init2(pC.m, 1);
-	#endif
-
-	for (int i=tOut->iRan2[idx] ; i<tOut->iRan2[idx+1] ; i++) {
-		mpz_set_ui(pC.m, tIn->Class[i]);
-		// mc'_j = mf'_j^(c_j)
-		paillier_exp(mPubKey, &(tOut->cMc[i]), &(tOut->cFRes[i]), &pC);
-	}
-
-	#ifdef _DEBUG_Assert
-	assert(pC.m->_mp_alloc == 1);
 	#endif
 
 	return;

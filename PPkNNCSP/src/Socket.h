@@ -17,10 +17,19 @@
 #include <string>
 #include <arpa/inet.h>
 
+const int MOD_SIZE = 1024;						// (check) bit
+const int KEY_SIZE = MOD_SIZE/8;				// byte: N
+const int ENC_SIZE = KEY_SIZE*2;				// byte: N^2
+const int DATA_NUMBER_LENGTH = 5;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+const int GMP_N_SIZE = MOD_SIZE/64;
+const int HED_SIZE = 5;
+const int HED_LEN  = 3;
+const int NUM_PPkNN_THREAD = 1;					// (check)
 
 const int MAXHOSTNAME = 200;
 const int MAXCONNECTIONS = 5;
-const int MAXRECV = 500;
+//const int MAXRECV = 500;
+const int MAXRECV = ENC_SIZE*DATA_NUMBER_LENGTH+50;
 
 class Socket
 {

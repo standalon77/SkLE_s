@@ -27,7 +27,7 @@ void PPkNNTrd(PaillierCrypto *oCrypto, sync_t* tSync, out_t *tOut, in_t *tIn, un
 	pre_t tPre;
 	skle_t tSkle;
 	unsigned int *pSyncCnt2, *pSyncCnt1;
-	int iSrt, iEnd, iBit, iNum;
+//	int iSrt, iEnd;
 	bool bFirst = true;
 
 	#ifdef _DEBUG_THREAD
@@ -155,52 +155,50 @@ void PPkNNTrd(PaillierCrypto *oCrypto, sync_t* tSync, out_t *tOut, in_t *tIn, un
 
 	oCrypto->SkLE_s_Init(tOut, &tSkle, &tPre, bFirst, idx);
 
-	oCrypto->SkLE_s_Main(tOut, &tSkle, &tPre, bFirst, idx, tRecv);
+	for (int j=DATA_SQUARE_LENGTH-1 ; j>=0 ; j++) {			// j = l-1 ~ 0
+
+		///////////////////////// Step 1 /////////////////////////
+
+		oCrypto->SkLE_s_1(tOut, &tSkle, &tPre, j, bFirst, idx, tRecv);
+
+		///////////////////////// Step 2,3,4 /////////////////////////
+
+		ulSync.lock();
+		if (j%2 == 0) 		{	pSyncCnt2 = &(tSync->c2);	pSyncCnt1 = &(tSync->c1);	}
+		else 					{	pSyncCnt2 = &(tSync->c1);	pSyncCnt1 = &(tSync->c2);	}
+
+		(*pSyncCnt2)++;
+		if (*pSyncCnt2 < NUM_MAIN_THREAD) {
+			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=NUM_MAIN_THREAD;});
+		}
+		else {
+			oCrypto->SkLE_s_234(tOut, &tSkle, &tPre, j, bFirst, idx, tRecv);
+			tSync->cv.notify_all();		*pSyncCnt1=0;
+		}
+		ulSync.unlock();
+
+		///////////////////////// Step 4 /////////////////////////
+
+		oCrypto->SkLE_s_4(tOut, &tSkle, j, bFirst, idx, tRecv);
+	}
+
+	// K[i] = K[i] * C[i] (i = 1~n)
+	oCrypto->SkLE_s_5(tOut, &tSkle, bFirst, idx);
+
+	// (tSync->c1), Top-k data를 찾은 경우, 2의 순서를 맞추기 위해서 한번더 수행함.
+	if (DATA_SQUARE_LENGTH%2 != 0) {
+		ulSync.lock();
+		(tSync->c1)++;
+		if (tSync->c1 < NUM_MAIN_THREAD) {
+			tSync->cv.wait(ulSync, [&] {return tSync->c1>=NUM_MAIN_THREAD;});
+		}
+		else {
+			tSync->cv.notify_all();		tSync->c2=0;
+		}
+		ulSync.unlock();
+	}
 
 
-//	iNum=-1;
-//	for (iBit=DATA_SQUARE_LENGTH ; iBit>=0 ; iBit--) {			// SkLE_s_Main을 위해서 마지막 한번더 실행 필요함.
-//		iNum++;
-//		#ifdef _DEBUG_THREAD
-//		printf("\n<<<  %03d - th bit examination (SkLE_s) >>>\n\n", iBit-1);
-//		#endif
-//
-//		//oCrypto->SkLE_s_Main(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv, tSend, ucSendBuf);
-//		oCrypto->SkLE_s_Main(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv);
-//
-//		ulSync.lock();
-//		if (iNum%2 == 0) 		{	pSyncCnt2 = &(tSync->c2);	pSyncCnt1 = &(tSync->c1);	}
-//		else 					{	pSyncCnt2 = &(tSync->c1);	pSyncCnt1 = &(tSync->c2);	}
-//
-//		(*pSyncCnt2)++;
-//		if (*pSyncCnt2 < NUM_MAIN_THREAD) {
-//			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=NUM_MAIN_THREAD;});
-//		}
-//		else {
-//			//oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv, tSend, ucSendBuf);
-//			oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv);
-//			tSync->cv.notify_all();		*pSyncCnt1=0;
-//		}
-//		ulSync.unlock();
-//
-//		// (tSync->c1), Top-k data를 찾은 경우, 2의 순서를 맞추기 위해서 한번더 수행함.
-//		if (tOut->iCmp != 0) {
-//			if (iNum%2 == 0) {
-//				ulSync.lock();
-//				(tSync->c1)++;
-//				if (tSync->c1 < NUM_MAIN_THREAD) {
-//					tSync->cv.wait(ulSync, [&] {return tSync->c1>=NUM_MAIN_THREAD;});
-//				}
-//				else {
-//					tSync->cv.notify_all();		tSync->c2=0;
-//				}
-//				ulSync.unlock();
-//			}
-//			tSkle.iFoundBit[0] = iBit;
-//			break;
-//		}
-//	}	// (FOR-end) Finding Top-k data 종료
-//
 //	// 결과 복사
 //	iSrt = tOut->iRan[idx];
 //	iEnd = tOut->iRan[idx+1];
@@ -217,8 +215,8 @@ void PPkNNTrd(PaillierCrypto *oCrypto, sync_t* tSync, out_t *tOut, in_t *tIn, un
 //	}
 //	else
 //		assert(0);
-//
-//	///////////////////////// SkLE_s code end /////////////////////////
+
+	///////////////////////// SkLE_s code end /////////////////////////
 
 	// print the result of SkLE_s
 	#ifdef _DEBUG_MAIN_1

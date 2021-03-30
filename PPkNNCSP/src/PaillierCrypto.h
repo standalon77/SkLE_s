@@ -17,9 +17,8 @@
 //#define _DEBUG_SecureBitDecomposition
 //#define _DEBUG_EncryptedLSB
 //#define _DEBUG_SVR
-#define _DEBUG_IPE_FTK
-#define _DEBUG_Comparison
-//#define _DEBUG_CFTKD
+#define _DEBUG_SCI
+//#define _DEBUG_SCF
 //#define _DEBUG_TERMINATE_PGM
 //#define _DEBUG_Communication
 
@@ -35,22 +34,23 @@ extern "C"{
 #include <mutex>
 #include <condition_variable>
 
-const int MOD_SIZE = 1024;						// (check) bit
-const int KEY_SIZE = MOD_SIZE/8;				// byte: N
-const int ENC_SIZE = KEY_SIZE*2;				// byte: N^2
-const int GMP_N_SIZE = MOD_SIZE/64;
-const int HED_SIZE = 5;
-const int HED_LEN  = 3;
-const int NUM_PPkNN_THREAD = 1;					// (check)
+//const int MOD_SIZE = 1024;						// (check) bit
+//const int KEY_SIZE = MOD_SIZE/8;				// byte: N
+//const int ENC_SIZE = KEY_SIZE*2;				// byte: N^2
+//const int DATA_NUMBER_LENGTH = 5;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+//const int GMP_N_SIZE = MOD_SIZE/64;
+//const int HED_SIZE = 5;
+//const int HED_LEN  = 3;
+//const int NUM_PPkNN_THREAD = 4;					// (check)
 
 // Command Tag
 const unsigned char COM_MUL1 	= 0x01;
 const unsigned char COM_MUL2 	= 0x02;
 const unsigned char COM_LSB 	= 0x03;
 const unsigned char COM_SVR 	= 0x04;
-const unsigned char COM_CMP1 	= 0x05;
-const unsigned char COM_CMP2 	= 0x06;
-const unsigned char COM_CFTKD 	= 0x07;
+const unsigned char COM_SCI 	= 0x05;
+const unsigned char COM_SZP 	= 0x06;
+const unsigned char COM_SCF 	= 0x07;
 const unsigned char COM_TERM 	= 0xFF;
 
 // send, recv를 관리하기 위한 struct
@@ -97,16 +97,17 @@ public:
 //	void EncryptedLSB(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
 //	void SVR		 (unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
 //	int  Comparison  (unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
-//	bool CFTKD		 (unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
+//	bool SCF		 (unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
 //	void TerminatePgm(unsigned short idx, unsigned char* ucRecvPtr, unsigned char* ucSendPtr, th_t* tSend);
-	bool SecMul1	 (unsigned short idx, unsigned char* ucRecvPtr);
-	bool SecMul2	 (unsigned short idx, unsigned char* ucRecvPtr);
-	void EncryptedLSB(unsigned short idx, unsigned char* ucRecvPtr);
-	void SVR		 (unsigned short idx, unsigned char* ucRecvPtr);
-	int  Comparison1 (unsigned short idx, unsigned char* ucRecvPtr);
-	int  Comparison2 (unsigned short idx, unsigned char* ucRecvPtr);
-	bool CFTKD		 (unsigned short idx, unsigned char* ucRecvPtr);
-	void TerminatePgm(unsigned short idx, unsigned char* ucRecvPtr);
+	bool SecMul1	 	(unsigned short idx, unsigned char* ucRecvPtr);
+	bool SecMul2	 	(unsigned short idx, unsigned char* ucRecvPtr);
+	void EncryptedLSB	(unsigned short idx, unsigned char* ucRecvPtr);
+	void SVR		 	(unsigned short idx, unsigned char* ucRecvPtr);
+	int  Comparison1 	(unsigned short idx, unsigned char* ucRecvPtr);
+	int  Comparison2 	(unsigned short idx, unsigned char* ucRecvPtr);
+	int  SCI			(unsigned short idx, unsigned char* ucRecvPtr);
+	bool SCF		 	(unsigned short idx, unsigned char* ucRecvPtr);
+	void TerminatePgm	(unsigned short idx, unsigned char* ucRecvPtr);
 
 //	int Sender(th_t* tSend);
 	int Receiver(th_t* tRecv);

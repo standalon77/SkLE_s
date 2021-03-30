@@ -57,24 +57,36 @@ void PPkNNTrd(PaillierCrypto *oCrypto, unsigned short idx, th_t* tRecv)
 			#endif
 			//oCrypto->SVR		 (idx, ucRecvPtr, ucSendBuf, tSend);	break;
 			oCrypto->SVR		 (idx, ucRecvPtr);						break;
-		case COM_CMP1   :
+		case COM_SCI   :
 			#ifdef _DEBUG_THREAD
-			printf("\n<<<  %03d - Comparison Command >>>\n\n", idx);
+			printf("\n<<<  %03d - SCI Command >>>\n\n", idx);
 			#endif
-			//oCrypto->Comparison(idx, ucRecvPtr, ucSendBuf, tSend);break;
-			oCrypto->Comparison1 (idx, ucRecvPtr);						break;
-		case COM_CMP2   :
+			//oCrypto->SVR		 (idx, ucRecvPtr, ucSendBuf, tSend);	break;
+			oCrypto->SCI		 (idx, ucRecvPtr);						break;
+		case COM_SZP   :
 			#ifdef _DEBUG_THREAD
-			printf("\n<<<  %03d - Comparison Command >>>\n\n", idx);
+			printf("\n<<<  %03d - SZP Command >>>\n\n", idx);
 			#endif
-			//oCrypto->Comparison(idx, ucRecvPtr, ucSendBuf, tSend);break;
-			oCrypto->Comparison2 (idx, ucRecvPtr);						break;
-		case COM_CFTKD :
+			//oCrypto->SVR		 (idx, ucRecvPtr, ucSendBuf, tSend);	break;
+			oCrypto->SCI		 (idx, ucRecvPtr);						break;
+//		case COM_CMP1   :
+//			#ifdef _DEBUG_THREAD
+//			printf("\n<<<  %03d - Comparison Command >>>\n\n", idx);
+//			#endif
+//			//oCrypto->Comparison(idx, ucRecvPtr, ucSendBuf, tSend);break;
+//			oCrypto->Comparison1 (idx, ucRecvPtr);						break;
+//		case COM_CMP2   :
+//			#ifdef _DEBUG_THREAD
+//			printf("\n<<<  %03d - Comparison Command >>>\n\n", idx);
+//			#endif
+//			//oCrypto->Comparison(idx, ucRecvPtr, ucSendBuf, tSend);break;
+//			oCrypto->Comparison2 (idx, ucRecvPtr);						break;
+		case COM_SCF :
 			#ifdef _DEBUG_THREAD
-			printf("\n<<<  %03d - CFTKD Command >>>\n\n", idx);
+			printf("\n<<<  %03d - SCF Command >>>\n\n", idx);
 			#endif
-			//oCrypto->CFTKD	 (idx, ucRecvPtr, ucSendBuf, tSend);break;
-			oCrypto->CFTKD		 (idx, ucRecvPtr);						break;
+			//oCrypto->SCF	 (idx, ucRecvPtr, ucSendBuf, tSend);break;
+			oCrypto->SCF		 (idx, ucRecvPtr);						break;
 		case COM_TERM :
 			#ifdef _DEBUG_THREAD
 			printf("\n<<<  %03d - TERMINATE Command >>>\n\n", idx);

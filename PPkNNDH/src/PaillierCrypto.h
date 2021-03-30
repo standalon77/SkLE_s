@@ -19,7 +19,7 @@
 //#define _DEBUG_EncryptedLSB
 //#define _DEBUG_SVR
 #define _DEBUG_SkLE_s
-#define _DEBUG_Comparison
+#define _DEBUG_SCI
 //#define _DEBUG_CFTKD
 //#define _DEBUG_TERMINATE_PGM
 //#define _DEBUG_Communication
@@ -37,32 +37,32 @@ extern "C"{
 #include <mutex>
 #include <condition_variable>
 
-const int MOD_SIZE = 1024;						// (check) bit
-const int KEY_SIZE = MOD_SIZE/8;				// byte: N
-const int ENC_SIZE = KEY_SIZE*2;				// byte: N^2
-const int DATA_SQUARE_LENGTH = 12;				// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
-const int DATA_NUMBER_LENGTH = 5;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
-const int GMP_N_SIZE = MOD_SIZE/64;
-const int HED_SIZE = 5;
-const int HED_LEN  = 3;
-
-const int DATA_SIZE = 20;						// (check)e
-const int DATA_DIMN = 4;							// (check)
-const int CLASS_SIZE= 4;							// (check)
-const int PARAM_K =   4;							// (check)
-
-const int NUM_MAIN_THREAD  = 1;					// (check) Main thread의 개수.
-const int NUM_MAIN_THREAD2 = NUM_MAIN_THREAD>=CLASS_SIZE ? CLASS_SIZE : NUM_MAIN_THREAD;	// Class thread의 개수. (SBD, SkLE_s for f_j)
-// 각 thread가 처리하는 데이터의 갯수, (problem) 데이터의 갯수가 정확히 나누어지지 않는 경우 일부 thread는 메모리 낭비가 있을수 있다. (struct로 미리 선언하기 위해 불가피하게 정의함.)
-const int NUM_THREAD_DATA  = DATA_SIZE%NUM_MAIN_THREAD==0 ? DATA_SIZE/NUM_MAIN_THREAD : (int)(DATA_SIZE/NUM_MAIN_THREAD)+1;
+//const int MOD_SIZE = 1024;						// (check) bit
+//const int KEY_SIZE = MOD_SIZE/8;				// byte: N
+//const int ENC_SIZE = KEY_SIZE*2;				// byte: N^2
+//const int DATA_SQUARE_LENGTH = 12;				// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+//const int DATA_NUMBER_LENGTH = 5;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+//const int GMP_N_SIZE = MOD_SIZE/64;
+//const int HED_SIZE = 5;
+//const int HED_LEN  = 3;
+//
+//const int DATA_SIZE = 20;						// (check)e
+//const int DATA_DIMN = 4;							// (check)
+//const int CLASS_SIZE= 4;							// (check)
+//const int PARAM_K =   4;							// (check)
+//
+//const int NUM_MAIN_THREAD  = 1;					// (check) Main thread의 개수.
+//const int NUM_MAIN_THREAD2 = NUM_MAIN_THREAD>=CLASS_SIZE ? CLASS_SIZE : NUM_MAIN_THREAD;	// Class thread의 개수. (SBD, SkLE_s for f_j)
+//// 각 thread가 처리하는 데이터의 갯수, (problem) 데이터의 갯수가 정확히 나누어지지 않는 경우 일부 thread는 메모리 낭비가 있을수 있다. (struct로 미리 선언하기 위해 불가피하게 정의함.)
+//const int NUM_THREAD_DATA  = DATA_SIZE%NUM_MAIN_THREAD==0 ? DATA_SIZE/NUM_MAIN_THREAD : (int)(DATA_SIZE/NUM_MAIN_THREAD)+1;
 
 // Command Tag
 const unsigned char COM_MUL1 	= 0x01;
 const unsigned char COM_MUL2 	= 0x02;
 const unsigned char COM_LSB 	= 0x03;
 const unsigned char COM_SVR 	= 0x04;
-const unsigned char COM_CMP1 	= 0x05;
-const unsigned char COM_CMP2 	= 0x06;
+const unsigned char COM_SCI 	= 0x05;
+const unsigned char COM_SZP 	= 0x06;
 const unsigned char COM_CFTKD 	= 0x07;
 const unsigned char COM_TERM 	= 0xFF;
 
@@ -137,15 +137,20 @@ typedef struct {
 
 	paillier_ciphertext_t cC[NUM_THREAD_DATA];
 	paillier_ciphertext_t cK[NUM_THREAD_DATA];
-//	unique_lock<mutex> ulSync
+	paillier_ciphertext_t cU[NUM_THREAD_DATA];
+	paillier_ciphertext_t cM;
+	paillier_ciphertext_t cD;
+	paillier_ciphertext_t cA;
+	paillier_ciphertext_t cB;
+	paillier_ciphertext_t cG;
 } skle_t;
 
 class PaillierCrypto {
 private:
 	gmp_randstate_t state;
-    ServerSocket *mSSocket;
+	ServerSocket *mSSocket;
 	paillier_prvkey_t* mPrvKey;		// for debugging
-    paillier_pubkey_t* mPubKey;
+	paillier_pubkey_t* mPubKey;
 
 	inline void paillier_ciphertext_from_bytes(paillier_ciphertext_t* ct, void* c, int len);
 	inline void paillier_ciphertext_to_bytes(unsigned char* buf, int len, paillier_ciphertext_t* ct );
@@ -173,12 +178,13 @@ private:
 //	int SVR(paillier_ciphertext_t* cEX, paillier_ciphertext_t* cEXi, pre_t* tPre, 						  			   unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr);
 //	int Comparison(paillier_ciphertext_t* cGamma, paillier_ciphertext_t* cCnt, 							  pre_t *tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr);
 
-	void SecMul(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cEa, paillier_ciphertext_t* cEb, 	  			   unsigned short idx, thp_t* tRecv);
-	void SecMul(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cEa, 								  			   unsigned short idx, thp_t* tRecv);
+	void SecMul(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cEa, paillier_ciphertext_t* cEb, 	  			   	 unsigned short idx, thp_t* tRecv);
+	void SecMul(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cEa, 								  			   		 unsigned short idx, thp_t* tRecv);
 	void EncryptedLSB(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cT, 							  pre_t* tPre, unsigned short idx, thp_t* tRecv);
 	int SVR(paillier_ciphertext_t* cEX, paillier_ciphertext_t* cEXi, int len, 							  pre_t* tPre, unsigned short idx, thp_t* tRecv);
-	int Comparison(paillier_ciphertext_t* cGamma, paillier_ciphertext_t* cCnt,
-			paillier_ciphertext_t* cCntbit, paillier_ciphertext_t* cCntCom, int iK, int* iKbit, 		  pre_t *tPre, unsigned short idx, thp_t* tRecv);
+	int SCI(paillier_ciphertext_t* cM, paillier_ciphertext_t* cD, paillier_ciphertext_t* cSb, paillier_ciphertext_t* cSc, int* iKb,
+																													  pre_t *tPre, unsigned short idx, thp_t* tRecv);
+	int SZP(paillier_ciphertext_t* cG, paillier_ciphertext_t* cX, 											  pre_t *tPre, unsigned short idx, thp_t* tRecv);
 
 public:
 	PaillierCrypto();
@@ -202,11 +208,16 @@ public:
 	void SecBitDecomp(out_t* tOut, skle_t* tSkle, pre_t* tPre,		  bool bFirst, unsigned short idx, thp_t* tRecv);
 	void SkLE_s_Init(out_t* tOut, skle_t* tSkle, pre_t* tPre, 		  bool bFirst, unsigned short idx);
 //	void SkLE_s_Main1(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
-	void SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv);
-	void SkLE_s_Cmp (out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
-	void CFTKD		 (out_t* tOut, in_t* tIn, 	pre_t* tPre, 					   unsigned short idx, thp_t* tRecv);
-	void ComputeMc	 (out_t* tOut, in_t *In, 		   			 				   unsigned short idx);
-	int TerminatePgm(							   			 					   unsigned short idx, thp_t* tRecv);
+//	void SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv);
+//	void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv, std::unique_lock<std::mutex>* ulSync, sync_t* tSync);
+//	void PaillierCrypto::SkLE_s_Main(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv, unique_lock<mutex> ulSync, sync_t* tSync);
+	void SkLE_s_1(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
+	void SkLE_s_234(out_t* tOut, skle_t* tSkle, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
+//	void SkLE_s_4	 (out_t* tOut, in_t *In, 	skle_t* tSkle,  				   unsigned short idx);
+	void SkLE_s_4(out_t* tOut, skle_t* tSkle, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
+	void SkLE_s_5(out_t* tOut, skle_t* tSkle, 		  bool bFirst, unsigned short idx);
+	void CFTKD		 (out_t* tOut, in_t* tIn, 	pre_t* tPre, 			 unsigned short idx, thp_t* tRecv);
+	int TerminatePgm(							   			 				 unsigned short idx, thp_t* tRecv);
 
 //	int Sender  (th_t*  tSend);
 	int Receiver(thp_t* tRecv);
