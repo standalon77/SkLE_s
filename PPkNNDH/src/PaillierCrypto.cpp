@@ -1994,20 +1994,21 @@ int PaillierCrypto::SZP(paillier_ciphertext_t* cG, paillier_ciphertext_t* cX, pr
 	DebugOut("Alpha = \t\t\t\t\t\t\t", iAlpha, idx);
 	#endif
 
-	// initialize T
-	mpz_set_ui(cT.c, 1);
 
 	if (iAlpha==0) {
 		for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {			//?? 첫번째와 두번째 길이가 달라질 것 같은데.
-			// E(T) = E(1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2
+			// initialize T
+			mpz_set_ui(cT.c, 1);
+
+			// E(T) = E(-1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2
 			for (int j=i+1 ; j<DATA_NUMBER_LENGTH ; j++)
 				paillier_mul(mPubKey, &cT, &cT, cX+j);
 			paillier_mul(mPubKey, &cT, &cT, &cT);
 			paillier_mul(mPubKey, &cT, cX+i, &cT);
-			paillier_mul(mPubKey, &cT, &(tPre->c1), &cT);
+			paillier_mul(mPubKey, &cT, &(tPre->cN1), &cT);
 			#ifdef _DEBUG_SCI
 			printf("[DH-%03d] *** (Alpha=0) [i=%d] ***\n", (int)idx, i);
-			DebugDec("(Alpha=0) E(S[i]) = E(1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2 \t", &cT, idx);
+			DebugDec("(Alpha=0) E(S[i]) = E(-1) * E(X[i]) * (Sum_j=i+1~l E(X[j]) )^2 \t", &cT, idx);
 			#endif
 
 			// E(C[i]) = E(T)^r
@@ -2019,6 +2020,9 @@ int PaillierCrypto::SZP(paillier_ciphertext_t* cG, paillier_ciphertext_t* cX, pr
 		}
 	}
 	else {
+		// initialize T
+		mpz_set_ui(cT.c, 1);
+
 		// E(S[1]) = Sum_j=1~l E(X[j])
 		for (int j=0 ; j<DATA_NUMBER_LENGTH ; j++)
 			paillier_mul(mPubKey, &cT, &cT, cX+j);
@@ -2068,6 +2072,8 @@ int PaillierCrypto::SZP(paillier_ciphertext_t* cG, paillier_ciphertext_t* cX, pr
 		paillier_ciphertext_to_bytes(bD, ENC_SIZE, &cC[uiR[j]]);
 		memcpy(ucSendPtr+HED_SIZE+(j*ENC_SIZE), bD, ENC_SIZE);
 	}
+	ucSendPtr[3] = (unsigned char)((DATA_NUMBER_LENGTH*ENC_SIZE) & 0x000000ff);
+	ucSendPtr[4] = (unsigned char)(((DATA_NUMBER_LENGTH*ENC_SIZE) & 0x0000ff00) >> 8);
 	#ifdef _DEBUG_SCI
 	DebugCom("D (Hex):\t\t\t", ucSendPtr, HED_SIZE+(DATA_NUMBER_LENGTH*ENC_SIZE), idx);
 	#endif
