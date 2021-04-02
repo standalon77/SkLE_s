@@ -292,7 +292,6 @@ bool PaillierCrypto::inputDatasetQuery(in_t *tIn)
 }
 
 //void PaillierCrypto::SquaredDist(out_t* tOut, in_t *tIn, pre_t* tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
-//void PaillierCrypto::SquaredDist(out_t* tOut, in_t *tIn, pre_t* tPre, unsigned short idx, thp_t* tRecv)
 void PaillierCrypto::SquaredDist(paillier_ciphertext_t* cDist, paillier_ciphertext_t (*cData)[DATA_DIMN], paillier_ciphertext_t* cQuery,
 		pre_t* tPre, unsigned short idx, int iNum, thp_t* tRecv)
 {
@@ -300,19 +299,10 @@ void PaillierCrypto::SquaredDist(paillier_ciphertext_t* cDist, paillier_cipherte
 	paillier_ciphertext_t cT, cQN1[iDim];
 
 	#ifdef _DEBUG_INIT_1
-//	mpz_inits(cTmp1.c, cTmp2.c, NULL);
 	mpz_inits(cT.c, NULL);
 	#else
 	mpz_init2(cT.c, 2*GMP_N_SIZE*2);
 	#endif
-
-	// test code
-	for (int i=0 ; i<10 ; i++) {
-		for (int j=0 ; j<DATA_DIMN-1 ; j++) {
-			printf("[%d, %d] \t", i, j);
-			DebugDec("....", cData[i]+j, idx);
-		}
-	}
 
 	for (int j=0 ; j<iDim ; j++)
 		#ifdef _DEBUG_INIT_1
@@ -328,7 +318,6 @@ void PaillierCrypto::SquaredDist(paillier_ciphertext_t* cDist, paillier_cipherte
 
 	// q[j]^(N-1)  for j=1~m
 	for (int j=0 ; j<iDim ; j++) {
-//		paillier_exp(mPubKey, &cQN1[j], &(tIn->cQuery[j]), &(tPre->pN1));
 		paillier_exp(mPubKey, cQN1+j, cQuery+j, &(tPre->pN1));
 		#ifdef _DEBUG_SquaredDist
 		//DebugOut("q[j]^(N-1) \t", cQN1+j, idx);
@@ -336,14 +325,9 @@ void PaillierCrypto::SquaredDist(paillier_ciphertext_t* cDist, paillier_cipherte
 		#endif
 	}
 
-//	for (int i=tOut->iRan[idx] ; i<tOut->iRan[idx+1] ; i++) {
 	for (int i=0 ; i<iNum ; i++) {
 		// initialize Dist = E(0)
 		mpz_set_ui((cDist+i)->c, 1);
-//		#ifdef _DEBUG_SquaredDist
-//		//DebugOut("Encrypted s=0 (initialization)\t", tOut->cDist[i].c, idx);
-//		DebugDec("s=0 (initialization)\t\t", &(tOut->cDist[i]), idx);
-//		#endif
 
 		for (int j=0 ; j<iDim-1 ; j++) {
 			// T = d[i,j] * -q[j]
@@ -689,173 +673,89 @@ void PaillierCrypto::SecMul(paillier_ciphertext_t* cRes, paillier_ciphertext_t* 
 }
 
 //void PaillierCrypto::SecBitDecomp(out_t* tOut, skle_t* tSkle, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
-void PaillierCrypto::SecBitDecomp(out_t* tOut, skle_e_t* tSklee, skle_1_t* tSkle1, pre_t* tPre, bool bFirst, unsigned short idx, thp_t* tRecv)
+void PaillierCrypto::SBD(paillier_ciphertext_t* cXb, paillier_ciphertext_t* cXc, paillier_ciphertext_t* cX, int iLen, pre_t* tPre, unsigned short idx, thp_t* tRecv)
 {
-	paillier_ciphertext_t cT, cZ;
-	paillier_ciphertext_t *cEX;
-	paillier_ciphertext_t *cEXi;
+	paillier_ciphertext_t cT, cZ, cT1;
 	int iGamma;
-	int iSrt, iEnd;
-	int iLen;
 
 	#ifdef _DEBUG_INIT_1
-	mpz_inits(cT.c, cZ.c, NULL);
+	mpz_inits(cT.c, cZ.c, cT1.c, NULL);
 	#else
 	mpz_init2(cT.c, 2*GMP_N_SIZE);
 	mpz_init2(cZ.c, 2*GMP_N_SIZE*2);
+	mpz_init2(cT1.c, 2*GMP_N_SIZE*2);
 	#endif
 
-	if (tSklee->bSkle) {
-		cEX		= &(tOut->cS);	//tSkle->cSb[0];
-		iSrt	= 0;
-		iEnd	= 1;
-		iLen = DATA_NUMBER_LENGTH;
-	}
-	else {
-		if (bFirst) {
-			cEX  = tOut->cDist;
-			iSrt = tOut->iRan[idx];
-			iEnd = tOut->iRan[idx+1];
-			iLen = DATA_SQUARE_LENGTH;
-		}
-		else {
-			cEX  = tOut->cFreq;
-			iSrt = tOut->iRan2[idx];
-			iEnd = tOut->iRan2[idx+1];
-			iLen = DATA_NUMBER_LENGTH;
-		}
-	}
-
-	// -E(x_i) 결과 저장 (i=1~l) l=DATA_SQUARE_LENGTH or DATA_NUMBER_LENGTH
-	paillier_ciphertext_t _cEXi[iLen];
-	for (int j=0 ; j<iLen ; j++)
-		#ifdef _DEBUG_INIT_1
-		mpz_init(_cEXi[j].c);
-		#else
-		mpz_init2(_cEXi[j].c, 2*GMP_N_SIZE);
+	while (1) {
+		// T = E(x)
+		mpz_set(cT.c, cX->c);
+		#ifdef _DEBUG_SBD
+		//DebugOut("T (copied)", cT.c, idx);
+		DebugDec("T = E(x) \t", &cT, idx); // problem
 		#endif
 
-	#ifdef _DEBUG_SecureBitDecomposition
-	// l = 2^(-1) mod N
-	DebugOut("l=2^(-1) mod N\t\t\t", tPre->pL.m, idx);
-	// N-1
-	DebugOut("N\t\t\t\t", mPubKey->n, idx);
-	DebugOut("N-1\t\t\t\t", tPre->pN1.m, idx);
-	#endif
+		for (int j=0 ; j<iLen ; j++) {
+			#ifdef _DEBUG_SBD
+			printf("\n<<<  %03d - th bit (Bit-Decomposition) >>>\n\n", j);
+			#endif
 
-	for (int i=iSrt ; i<iEnd ; i++) {
+			// compute the j-th LSB of E(x)
+			EncryptedLSB(cXb+j, &cT, tPre, idx, tRecv);
+			#ifdef _DEBUG_SBD
+			//DebugOut(j+"-th bit \t\t\t", cXb+j->c, idx);
+			DebugDec("j-th bit \t\t\t", cXb+j, idx);
+			#endif
 
-		#ifdef _DEBUG_SecureBitDecomposition
-		// parameter : E(x)
-		//DebugOut("input E(x)\t\t\t", cEX[i].c, idx);
-		DebugDec("input x\t\t\t", &cEX[i], idx);
+			// E(-x_i) = E(x_i)^(N-1)
+			paillier_exp(mPubKey, &cT1, cXb+j, &(tPre->pN1));
+			#ifdef _DEBUG_SBD
+			//DebugOut("E(-x_i)\t\t\t", cT1.c, idx);
+			DebugDec("E(-x_i)\t\t\t", &cT1, idx);
+			#endif
+
+			// E(~x_i) = E(1) * E(-x_i) : 추가 계산
+			paillier_mul(mPubKey, cXc+j, &(tPre->c1), &cT1);
+			#ifdef _DEBUG_SBD
+			//DebugOut("E(~x_i) = E(1) * E(-x_i) \t\t", cXc[j].c, idx);
+			DebugDec("E(~x_i) = E(1) * E(-x_i) \t\t", cXc+j, idx);
+			#endif
+
+			// Z = T * E(-x_i)
+			paillier_mul(mPubKey, &cZ, &cT, &cT1);
+			#ifdef _DEBUG_SBD
+			//DebugOut("Z = T * E(-x_i)\t\t", cZ.c, idx);
+			DebugDec("Z = T * E(-x_i)\t\t", &cZ, idx);
+			#endif
+
+			// T = Z^l (right shift)
+			paillier_exp(mPubKey, &cT, &cZ, &(tPre->pL));
+			#ifdef _DEBUG_SBD
+			//DebugOut("T = Z^l (right shift)\t\t", T.c, idx);
+			DebugDec("T = Z^l (right shift)\t\t", &cT, idx);
+			#endif
+		}
+
+		#ifdef _DEBUG_SBD
+		// parameter : E(x), < E(x_0), E(x_1), ... , E(x_m-1) >
+		DebugDec("E(X) \t\t\t\t", cX, idx);
+		for (int j=iLen-1 ; j>=0 ; j--) {
+			DebugDecBit(cXb+j);
+			if (j%4 == 0)
+				printf(" ");
+		}
+		printf("\n");
 		#endif
 
-		if (tSklee->bSkle)
-			cEXi = tSkle1->cSb[0];
-		else
-			cEXi = bFirst ? tOut->cDisB[i] : tOut->cFreB[i];
+		//iGamma = SVR(&cEX[i], cEXi, tPre, idx, tRecv, tSend, ucSendPtr);
+		iGamma = SVR(cX, cXb, iLen, tPre, idx, tRecv);
 
-		while (1) {
-			// T = E(x)
-			mpz_set(cT.c, cEX[i].c);
-			#ifdef _DEBUG_SecureBitDecomposition
-			//DebugOut("T (copied)", cT.c, idx);
-			DebugDec("Decrypted T = E(x) (copied)\t", &cT, idx); // problem
-			#endif
+		if (iGamma == 1)
+			break;
 
-			for (int j=0 ; j<iLen ; j++) {
-				#ifdef _DEBUG_SecureBitDecomposition
-				printf("\n<<<  %03d - th bit (Bit-Decomposition) >>>\n\n", j);
-				#endif
-
-				// compute the j-th LSB cf E(x)
-				//EncryptedLSB(&cEXi[j], &cT, tPre, idx, tRecv, tSend, ucSendPtr);
-				EncryptedLSB(&cEXi[j], &cT, tPre, idx, tRecv);
-				#ifdef _DEBUG_SecureBitDecomposition
-				//DebugOut(j+"-th bit\t\t\t", cEXi[j].c, idx);
-				DebugDec("j-th bit\t\t\t", &cEXi[j], idx);
-				#endif
-
-				// E(x_i)^(N-1) = E(-x_i)
-				paillier_exp(mPubKey, &_cEXi[j], &cEXi[j], &(tPre->pN1));
-				#ifdef _DEBUG_SecureBitDecomposition
-				//DebugOut("E(-x_i)\t\t\t", _cEXi[j].c, idx);
-				DebugDec("E(-x_i)\t\t\t", &_cEXi[j], idx);
-				#endif
-
-				// Z = T * E(-x_i)
-				paillier_mul(mPubKey, &cZ, &cT, &_cEXi[j]);
-				#ifdef _DEBUG_SecureBitDecomposition
-				//DebugOut("Z = T * E(-x_i)\t\t", cZ.c, idx);
-				DebugDec("Z = T * E(-x_i)\t\t", &cZ, idx);
-				#endif
-
-				// T = Z^l (right shift)
-				paillier_exp(mPubKey, &cT, &cZ, &(tPre->pL));
-				#ifdef _DEBUG_SecureBitDecomposition
-				//DebugOut("T = Z^l (right shift)\t\t", T.c, idx);
-				DebugDec("T = Z^l (right shift)\t\t", &cT, idx);
-				#endif
-			}
-
-			#ifdef _DEBUG_SecureBitDecomposition
-			// parameter : E(x), < E(x_0), E(x_1), ... , E(x_m-1) >
-			DebugDec("x (Decrypted Parameter E(x))\t", &cEX[i], idx);
-			printf("[DH] < x_m-1, ..., x_0, x_1 > (Decrypted Parameters)\n");
-			for (int j=iLen-1 ; j>=0 ; j--)
-				DebugDecBit(&cEXi[j]);
-			printf("\n");
-			#endif
-
-			//iGamma = SVR(&cEX[i], cEXi, tPre, idx, tRecv, tSend, ucSendPtr);
-			iGamma = SVR(&cEX[i], cEXi, iLen, tPre, idx, tRecv);
-			if (iGamma==1) {
-				if (tSklee->bSkle) {
-					for (int j=0 ; j<iLen ; j++)
-						// E(x_j) = 1 - E(x_j)
-						paillier_mul(mPubKey, &(tSkle1->cSb[1][j]), &(tPre->c1), &_cEXi[j]);
-
-					#ifdef _DEBUG_SecureBitDecomposition
-					// parameter : E(x), < E(x_0), E(x_1), ... , E(x_m-1) >
-					DebugDec("x (Decrypted Parameter E(x))\t", &cEX[i], idx);
-					printf("[DH] < x_m-1, ..., x_0, x_1 > (Decrypted Parameters)\n");
-					for (int j=iLen-1 ; j>=0 ; j--)
-						DebugDecBit(&(tSkle->cSb[1][j]));
-					printf("\n");
-					#endif
-				}
-				else {
-					if (bFirst) {
-						for (int j=0 ; j<iLen ; j++)
-							// E(x_j) = 1 - E(x_j)
-							paillier_mul(mPubKey, &cEXi[j], &(tPre->c1), &_cEXi[j]);
-
-						#ifdef _DEBUG_SecureBitDecomposition
-						// parameter : E(x), < E(x_0), E(x_1), ... , E(x_m-1) >
-						DebugDec("x (Decrypted Parameter E(x))\t", &cEX[i], idx);
-						printf("[DH] < x_m-1, ..., x_0, x_1 > (Decrypted Parameters)\n");
-						for (int j=iLen-1 ; j>=0 ; j--)
-							DebugDecBit(&cEXi[j]);
-						printf("\n");
-						#endif
-					}
-				}
-
-				// checking the allocated size  of GMP
-				#ifdef _DEBUG_Assert
-				assert(cT.c->_mp_alloc == 2*GMP_N_SIZE);
-				assert(cZ.c->_mp_alloc == 2*GMP_N_SIZE*2);
-				assert(_cEXi[0].c->_mp_alloc == 2*GMP_N_SIZE);
-				#endif
-
-				break;
-			}
-
-			printf("\n<<<  ***  FAIL to SVR !!!  *** >>>\n\n");
-		}
+		printf("\n<<<  ***  FAIL to SVR !!!  *** >>>\n\n");
 	}
 }
+
 
 //void PaillierCrypto::EncryptedLSB(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cT, pre_t* tPre, unsigned short idx, thp_t* tRecv, th_t* tSend, unsigned char* ucSendPtr)
 void PaillierCrypto::EncryptedLSB(paillier_ciphertext_t* cRes, paillier_ciphertext_t* cT, pre_t* tPre, unsigned short idx, thp_t* tRecv)
@@ -1260,18 +1160,18 @@ void PaillierCrypto::SkLE_s_234(out_t* tOut, skle_e_t* tSklee, skle_1_t* tSkle1,
 	///////////////////////// Step 3 /////////////////////////
 
 	// SBD of S
-	SecBitDecomp(tOut, tSklee, tSkle1, tPre, bFirst, idx, tRecv);
-	// 결과 출력
+	SBD(tSkle1->cSb[0], tSkle1->cSb[1], cS, DATA_NUMBER_LENGTH, tPre, idx, tRecv);
 
-	// SBD of K
 	if (bFirst) {		// param_k=PARAM_Kbit
+		// SBD of K
 		iTmp = PARAM_K;
 		for (int i=0 ; i<DATA_NUMBER_LENGTH ; i++) {
 			tSkle1->iKb[i] = iTmp%2;
 			iTmp >>= 1;
 		}
 	}
-	else {				// param_k=1
+	else {
+		// SBD of K
 		std::fill_n(tSkle1->iKb, DATA_NUMBER_LENGTH, 0);
 		tSkle1->iKb[0] = 1;
 	}
@@ -1453,28 +1353,24 @@ int PaillierCrypto::SCI(paillier_ciphertext_t* cM, paillier_ciphertext_t* cD, pa
 		if (j%8==0)		printf("\t");
 		if (j%64==0)		printf("\n");
 	}
-//	printf("\n");
 	printf("[DH] Decrypted ~S bit : \t");
 	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
 		DebugDecBit(cSc+j);
 		if (j%8==0)		printf("\t");
 		if (j%64==0)		printf("\n");
 	}
-//	printf("\n");
 	printf("[DH] Decrypted k bit : \t");
 	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
 		printf("%d", iKb[j]);
 		if (j%8==0)		printf("\t");
 		if (j%64==0)		printf("\n");
 	}
-//	printf("\n");
 	printf("[DH] Decrypted ~k bit : \t");
 	for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
 		printf("%d", 1-iKb[j]);
 		if (j%8==0)		printf("\t");
 		if (j%64==0)		printf("\n");
 	}
-//	printf("\n");
 	#endif
 
 	mpz_set_ui(p0.m, 0);
@@ -1888,7 +1784,6 @@ void PaillierCrypto::SCF(out_t* tOut, in_t* tIn, pre_t* tPre, unsigned short idx
 	#ifdef _DEBUG_INIT_1
 	mpz_inits(pR.m, cTmp1.c, cW.c, NULL);
 	#else
-//	mpz_init2(pTmp.m, 1);
 	mpz_init2(pR.m, GMP_N_SIZE);
 	mpz_init2(cTmp1.c, 2*GMP_N_SIZE*2);
 	mpz_init2(cW.c, 2*GMP_N_SIZE);
@@ -2187,13 +2082,6 @@ inline void PaillierCrypto::SetSendMsg(unsigned char* ucSendPtr, unsigned char* 
 
 	return;
 }
-
-//inline void PaillierCrypto::Short2Byte(unsigned char* Ret, unsigned short In)
-//{
-//	Ret[1] = (unsigned char)((In & 0x0000ff00) >> 8);
-//	Ret[0] = (unsigned char)(In & 0x000000ff);
-//	return;
-//}
 
 inline unsigned short PaillierCrypto::Byte2Short(unsigned char* In)
 {

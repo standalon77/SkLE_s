@@ -27,10 +27,18 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 	pre_t tPre;
 	skle_e_t tSklee;
 	unsigned int *pSyncCnt2, *pSyncCnt1;
-//	int iSrt, iEnd;
 	bool bFirst = true;
 	int iNum = tOut->iRan[idx+1] - tOut->iRan[idx];
 	int iSrtDat = tOut->iRan[idx];
+	paillier_ciphertext_t cT[DATA_SQUARE_LENGTH];
+
+	#ifdef _DEBUG_INIT_1
+	for (int i=0 ; i<DATA_SQUARE_LENGTH ; i++)
+		mpz_inits(cT[i].c, NULL);
+	#else
+		mpz_init2(cT[i].c, 2*GMP_N_SIZE*2);
+	#endif
+
 
 	#ifdef _DEBUG_THREAD
 	printf("<<<  %03d - th Thread start  >>>\n", idx);
@@ -60,7 +68,6 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 
 	// compute Squared Distance
 	//oCrypto->SquaredDist(tOut, tIn, &tPre, idx, tRecv, tSend, ucSendBuf);
-//	oCrypto->SquaredDist(tOut, tIn, &tPre, idx, tRecv);
 	oCrypto->SquaredDist((tOut->cDist)+iSrtDat, (tIn->cData)+iSrtDat, tIn->cQuery, &tPre, idx, iNum, tRecv);
 
 	// print the result of Squared Distance for debugging
@@ -104,10 +111,10 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 	ulSync.unlock();
 	#endif
 
-	// (from here) 함수를 파라미터 입출력으로 바꾸고 싶다.
 	// compute Secure Bit-Decomposition
 	//oCrypto->SecBitDecomp(tOut, &tSkle, &tPre, bFirst, idx, tRecv, tSend, ucSendBuf);
-	oCrypto->SecBitDecomp(tOut, &tSklee, tSkle1, &tPre, bFirst, idx, tRecv);
+	for (int i=iSrtDat ; i<iSrtDat+iNum ; i++)
+		oCrypto->SBD(cT, tOut->cDisB[i], (tOut->cDist)+i, DATA_SQUARE_LENGTH, &tPre, idx, tRecv);
 
 	// print the result of Squared Distance for debugging
 	#ifdef _DEBUG_MAIN_1
@@ -207,24 +214,6 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 		ulSync.unlock();
 	}
 
-
-//	// 결과 복사
-//	iSrt = tOut->iRan[idx];
-//	iEnd = tOut->iRan[idx+1];
-//	if (tOut->iCmp == 1) {
-//		for (int i=iSrt ; i<iEnd ; i++)
-//			tOut->cK[i] = tSkle.cTRes[i-iSrt];
-//	}
-//	else if (tOut->iCmp == 2) {
-//		iNum = tOut->iRan[idx+1]-tOut->iRan[idx];		// iNum 재사용
-//		iBit = tOut->iRan[idx];							// iBit 재사용
-//		for (int i=0 ; i<iNum ; i++) {
-//			paillier_mul(oCrypto->GetPubKey(), &(tOut->cK[iSrt+i]), &(tSkle.cIRes[i]), &(tSkle.cCan[i]));
-//		}
-//	}
-//	else
-//		assert(0);
-
 	///////////////////////// SkLE_s code end /////////////////////////
 
 	// print the result of SkLE_s
@@ -238,7 +227,6 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
     	tOut->end = time(NULL);		tOut->dTime[2] = (double) (tOut->end-tOut->start);		// compute time
     	printf("[DH-%03d] Time : %f (seconds) \n", idx, tOut->dTime[2]);
 
-//    	printf("[DH-%03d] Found bit : %d \n", idx, tSkle.iFoundBit[0]);
     	for (int i=0 ; i<DATA_NUM ; i++) {
     		printf("%02d - ", i);
     		oCrypto->DebugDecMain("K[i] (plaintext) ", &(tOut->cK[i]), idx);
@@ -308,6 +296,8 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 	}
 	bFirst = false;
 	tSklee.bSkle = false;
+	iNum = tOut->iRan2[idx+1] - tOut->iRan2[idx];
+	iSrtDat = tOut->iRan2[idx];
 
 	// ************************   Secure Bit-Decomposition for f'_j   ************************ //
 
@@ -330,7 +320,8 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 
 	// compute Secure Bit-Decomposition for f'_j
 	//oCrypto->SecBitDecomp(tOut, &tSkle, &tPre, bFirst, idx, tRecv, tSend, ucSendBuf);
-	oCrypto->SecBitDecomp(tOut, &tSklee, tSkle1, &tPre, bFirst, idx, tRecv);
+	for (int i=iSrtDat ; i<iSrtDat+iNum ; i++)
+		oCrypto->SBD(tOut->cFreB[i], cT, (tOut->cFreq)+i, DATA_NUMBER_LENGTH, &tPre, idx, tRecv);
 
 	// print the result of Secure Bit-Decomposition of f'_j
 	#ifdef _DEBUG_MAIN_1
@@ -347,7 +338,7 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 			printf("%02d - ", i);
 			oCrypto->DebugDecMain("bit decomposed f'_i (plaintext) ", &(tOut->cFreq[i]), idx);
 
-		    for (int j=DATA_NUMBER_LENGTH-1 ; j>=0 ; j--) {
+		    for (int j=CLASS_SIZE-1 ; j>=0 ; j--) {
 				oCrypto->DebugDecBitMain(&(tOut->cFreB[i][j]));
 				if (j%8==0)		printf("\t");
 				if (j%64==0)	printf("\n");
@@ -433,66 +424,6 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 		ulSync.unlock();
 	}
 
-//	iNum=-1;
-//	for (iBit=DATA_NUMBER_LENGTH ; iBit>=0 ; iBit--) {			// SkLE_s_Main을 위해서 마지막 한번더 실행 필요함.
-//		iNum++;
-//
-//		#ifdef _DEBUG_THREAD
-//		printf("\n<<<  %03d - th bit examination (IPE-FT1 for f'_j) >>>\n\n", iBit-1);
-//		#endif
-//
-//		//oCrypto->SkLE_s_Main(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv, tSend, ucSendBuf);
-//		oCrypto->SkLE_s_Main(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv);
-//
-//		ulSync.lock();
-//		if (iNum%2 == 0) 	{	pSyncCnt2 = &(tSync->c2);	pSyncCnt1 = &(tSync->c1);	}
-//		else 					{	pSyncCnt2 = &(tSync->c1);	pSyncCnt1 = &(tSync->c2);	}
-//
-//		(*pSyncCnt2)++;
-//		if (*pSyncCnt2 < THREAD2_NUM) {
-//			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=THREAD2_NUM;});
-//		}
-//		else {
-//			//oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv, tSend, ucSendBuf);
-//			oCrypto->SkLE_s_Cmp(tOut, &tSkle, &tPre, iBit-1, bFirst, idx, tRecv);
-//			tSync->cv.notify_all();		*pSyncCnt1=0;
-//		}
-//		ulSync.unlock();
-//
-//		// (tSync->c1), Top-k data를 찾은 경우, 2의 순서를 맞추기 위해서 한번더 수행함.
-//		if (tOut->iCmp != 0) {
-//			if (iNum%2 == 0) {
-//				ulSync.lock();
-//				(tSync->c1)++;
-//				if (tSync->c1 < THREAD2_NUM)
-//					tSync->cv.wait(ulSync, [&] {return tSync->c1>=THREAD2_NUM;});
-//				else {
-//					tSync->cv.notify_all();		tSync->c2=0;
-//				}
-//				ulSync.unlock();
-//			}
-//			tSkle.iFoundBit[1] = iBit;
-//			break;
-//		}
-//	}	// (FOR-end) Finding Top-k data 종료
-//
-//	// 결과를 복사
-//	iSrt = tOut->iRan2[idx];
-//	iEnd = tOut->iRan2[idx+1];
-//	if (tOut->iCmp == 1) {
-//		for (int i=iSrt ; i<iEnd ; i++)
-//			tOut->cFK[i] = tSkle.cTRes[i-iSrt];
-//	}
-//	else if (tOut->iCmp == 2) {
-//		iNum = tOut->iRan2[idx+1]-tOut->iRan2[idx];		// iNum 재사용
-//		iBit = tOut->iRan2[idx];							// iBit 재사용
-//		for (int i=0 ; i<iNum ; i++)
-//			paillier_mul(oCrypto->GetPubKey(), &(tOut->cFK[iSrt+i]), &(tSkle.cIRes[i]), &(tSkle.cCan[i]));
-//	}
-//	else
-//		assert(0);
-
-
 
 	///////////////////////// SkLE_s (k=1, f'_j) code end /////////////////////////
 
@@ -507,7 +438,6 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
     	tOut->end = time(NULL);		tOut->dTime[5] = (double) (tOut->end-tOut->start);		// compute time
     	printf("[DH-%03d] Time : %f (seconds) \n", idx, tOut->dTime[5]);
 
-//    	printf("[DH-%03d] Found bit : %d \n", idx, tSkle.iFoundBit[1]);
     	for (int i=0 ; i<CLASS_SIZE ; i++) {
     		printf("%02d - ", i);
     		oCrypto->DebugDecMain("FK[i] (plaintext) ", &(tOut->cFK[i]), idx);
@@ -825,13 +755,13 @@ int main() {
 		iTotal += tOut.dTime[i];
 	std::cout << std::endl << "************   Running Time   ************"<< std::endl << std::endl;
 	std::cout << "1. Squared Distance : \t\t\t\t" 				 << tOut.dTime[0] << std::endl;
-	std::cout << "2. Secure Bit-Decomposition : \t\t\t" 		 << tOut.dTime[1] << std::endl;
-	std::cout << "3. SkLE_s : \t\t\t\t\t" 						 << tOut.dTime[2] << std::endl;
-	std::cout << "4. Class Frequency of Top-k Data (SCF) : \t" << tOut.dTime[3] << std::endl;
+	std::cout << "2. Secure Bit-Decomposition : \t\t\t" 			 << tOut.dTime[1] << std::endl;
+	std::cout << "3. SkLE_s : \t\t\t\t\t\t" 						 << tOut.dTime[2] << std::endl;
+	std::cout << "4. Class Frequency of Top-k Data (SCF) : \t\t" << tOut.dTime[3] << std::endl;
 	std::cout << "5. Secure Bit-Decomposition for f'_j : \t\t" 	 << tOut.dTime[4] << std::endl;
-	std::cout << "6. IPE-FT1 (f'_j) : \t\t\t\t" 				 << tOut.dTime[5] << std::endl;
-	std::cout << "7. Computing mc'_j : \t\t\t\t" 				 << tOut.dTime[6] << std::endl;
-	std::cout << "*. Total : \t\t\t\t\t" 				 		 << iTotal		  << std::endl;
+	std::cout << "6. SkLE_s (k=1, f'[j]) : \t\t\t\t" 			 << tOut.dTime[5] << std::endl;
+	std::cout << "7. Computing mc'_j : \t\t\t\t" 					 << tOut.dTime[6] << std::endl;
+	std::cout << "*. Total : \t\t\t\t\t\t" 				 		 << iTotal		  << std::endl;
 
 	// checking the allocated size  of GMP
 	#ifdef _DEBUG_Assert

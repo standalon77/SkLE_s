@@ -13,8 +13,9 @@
 //#define _DEBUG_Assert
 #define _DEBUG_THREAD
 //#define _DEBUG_Initialization
-#define _DEBUG_SquaredDist
+//#define _DEBUG_SquaredDist
 //#define _DEBUG_SecureMultiplication
+//#define _DEBUG_SBD
 //#define _DEBUG_SecureBitDecomposition
 //#define _DEBUG_EncryptedLSB
 //#define _DEBUG_SVR
@@ -197,10 +198,9 @@ public:
 	bool inputDatasetQuery(in_t* tIn);
 	void PreComputation(pre_t *tPre, skle_e_t* tSklee, out_t *tOut, in_t* tIn, unsigned short idx);
 
-//	void SquaredDist 	(out_t* tOut, in_t *tIn,   							 pre_t* tPre, 						 unsigned short idx, thp_t* tRecv);
 	void SquaredDist 	(paillier_ciphertext_t* cDist, paillier_ciphertext_t (*cData)[DATA_DIMN], paillier_ciphertext_t* cQuery,
-			pre_t* tPre, unsigned short idx, int iNum, thp_t* tRecv);
-	void SecBitDecomp	(out_t* tOut, skle_e_t* tSklee, skle_1_t* tSkle1, pre_t* tPre, 		  bool bFirst, unsigned short idx, thp_t* tRecv);
+																				 pre_t* tPre, 						 unsigned short idx, int iNum, thp_t* tRecv);
+	void SBD			(paillier_ciphertext_t* cXb, paillier_ciphertext_t* cXc, paillier_ciphertext_t* cX, int iLen, pre_t* tPre, unsigned short idx, thp_t* tRecv);
 	void SkLE_s_Init	(out_t* tOut, skle_e_t* tSklee, 					 pre_t* tPre, 		  bool bFirst, unsigned short idx);
 	void SkLE_s_1		(out_t* tOut, skle_e_t* tSklee, 					 pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
 	void SkLE_s_234	(out_t* tOut, skle_e_t* tSklee, skle_1_t* tSkle1, pre_t* tPre, int bit, bool bFirst, unsigned short idx, thp_t* tRecv);
