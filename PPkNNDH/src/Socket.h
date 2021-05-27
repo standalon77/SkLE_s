@@ -3,11 +3,38 @@
 #ifndef Socket_class
 #define Socket_class
 
+//------------------------------------------------------------------------
+//// Test Data (n=20)
+//const int DATA_SQUARE_LENGTH = 11;				// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+//const int DATA_NUMBER_LENGTH = 5;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+//
+//const int DATA_NUM = 20;						// (check)e
+//const int DATA_DIMN = 4;							// (check)
+//const int CLASS_SIZE= 4;							// (check)
+//------------------------------------------------------------------------
+//// Car Evaluation (n=1728)
+//const int DATA_SQUARE_LENGTH = 7;				// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+//const int DATA_NUMBER_LENGTH = 11;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+//
+//const int DATA_NUM = 1728;						// (check)e
+//const int DATA_DIMN = 6;							// (check)
+//const int CLASS_SIZE= 4;							// (check)
+//------------------------------------------------------------------------
+//// Mushroom (n=8124)
+//const int DATA_SQUARE_LENGTH = 9;				// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+//const int DATA_NUMBER_LENGTH = 13;				// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+//
+//const int DATA_NUM = 8124;						// (check)e
+//const int DATA_DIMN = 22;							// (check)
+//const int CLASS_SIZE= 2;							// (check)
+//------------------------------------------------------------------------
+
+
 
 //const int DATA_SQUARE_LENGTH = 12;			// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
 //const int DATA_NUMBER_LENGTH = 5;			// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
-#define DATA_SQUARE_LENGTH 12					// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
-#define DATA_NUMBER_LENGTH 5					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+#define DATA_SQUARE_LENGTH 7					// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+#define DATA_NUMBER_LENGTH 11					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
 //#define CLAS_NUMBER_LENGTH 4					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
 const int MOD_SIZE = 1024;						// (check) bit
 const int KEY_SIZE = MOD_SIZE/8;				// byte: N
@@ -16,10 +43,10 @@ const int GMP_N_SIZE = MOD_SIZE/64;
 const int HED_SIZE = 5;
 const int HED_LEN  = 3;
 
-const int DATA_NUM = 20;							// (check)e
-const int DATA_DIMN = 4;							// (check)
+const int DATA_NUM = 1728;							// (check)e
+const int DATA_DIMN = 6;							// (check)
 const int CLASS_SIZE= 4;							// (check)		CLAS_NUMBER_LENGTH
-const int PARAM_K =   4;							// (check)
+const int PARAM_K =  1000;							// (check)
 
 const int THREAD1_NUM  = 8;					// (check) Main thread의 개수.
 const int THREAD2_NUM = THREAD1_NUM >= CLASS_SIZE ? CLASS_SIZE : THREAD1_NUM;	// Class thread의 개수. (SBD, SkLE_s for f_j)

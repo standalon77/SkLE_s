@@ -30,10 +30,11 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 	bool bFirst = true;
 	int iNum = tOut->iRan[idx+1] - tOut->iRan[idx];
 	int iSrtDat = tOut->iRan[idx];
-	paillier_ciphertext_t cT[DATA_SQUARE_LENGTH];
+	int iTsize = (DATA_SQUARE_LENGTH>DATA_NUMBER_LENGTH) ? DATA_SQUARE_LENGTH : DATA_NUMBER_LENGTH;
+	paillier_ciphertext_t cT[iTsize];
 
 	#ifdef _DEBUG_INIT_1
-	for (int i=0 ; i<DATA_SQUARE_LENGTH ; i++)
+	for (int i=0 ; i<iTsize ; i++)
 		mpz_inits(cT[i].c, NULL);
 	#else
 		mpz_init2(cT[i].c, 2*GMP_N_SIZE*2);
@@ -188,6 +189,7 @@ void PPkNNTrd(unsigned short idx, in_t *tIn, out_t *tOut, skle_1_t* tSkle1, Pail
 			tSync->cv.wait(ulSync, [&] {return *pSyncCnt2>=THREAD1_NUM;});
 		}
 		else {
+			printf("%d \n", j);
 			oCrypto->SkLE_s_234(tOut, &tSklee, tSkle1, &tPre, j, bFirst, idx, tRecv);
 			tSync->cv.notify_all();		*pSyncCnt1=0;
 		}

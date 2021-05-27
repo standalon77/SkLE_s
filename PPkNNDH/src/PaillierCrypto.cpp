@@ -920,7 +920,7 @@ int PaillierCrypto::SVR(paillier_ciphertext_t* cEX, paillier_ciphertext_t* cEXi,
 	#else
 	mpz_init2(pT.m, GMP_N_SIZE+1);
 	mpz_init2(cUVW.c, 2*GMP_N_SIZE*2);
-	mpz_init2(cT.c, 2*GMP_N_SIZE);
+	mpz_init2(cT.c, 2*GMP_N_SIZE);Ma
 	#endif
 
 	// parameter : E(x)
