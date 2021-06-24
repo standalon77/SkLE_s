@@ -43,6 +43,8 @@ paillier_pubkey_t*			PaillierCrypto::GetPubKey()		{return mPubKey;}
 void PaillierCrypto::PreComputation(pre_t *tPre, skle_e_t* tSklee, out_t *tOut, in_t* tIn, unsigned short idx)
 {
 	paillier_plaintext_t pT;		// 임시변수
+	int iNum = tOut->iRan[idx+1] - tOut->iRan[idx] ;
+	int SrtDat = tOut->iRan[idx] ;
 
 	#ifdef _DEBUG_INIT_1
 	mpz_inits(pT.m, tPre->pN1.m, tPre->pN2.m, tPre->pL.m, tPre->c1.c, tPre->cN1.c, tPre->cNk.c, tPre->mN2, NULL);
@@ -63,30 +65,41 @@ void PaillierCrypto::PreComputation(pre_t *tPre, skle_e_t* tSklee, out_t *tOut, 
 		#else
 		mpz_init2(tPre->cCls[i].c, 2*GMP_N_SIZE*2);
 		#endif
+//		printf("1");
 
 	// initialize cS = E(0)
-	for (int i=0 ; i<DATA_NUM ; i++) {
-		mpz_set_ui(tOut->cDist[i].c, 1);
+	for (int i=0 ; i<iNum ; i++) {
+		mpz_set_ui(tOut->cDist[SrtDat+i].c, 1);
 	}
+//	for (int i=0 ; i<DATA_NUM ; i++) {
+//		mpz_set_ui(tOut->cDist[i].c, 1);
+//	}
+
+
+//	printf("2");
 
 	// N-1
 	mpz_sub_ui(tPre->pN1.m, mPubKey->n, 1);			// mod 연산 추가
 	// N-2
 	mpz_sub_ui(tPre->pN2.m, mPubKey->n, 2);			// mod 연산 추가
+//	printf("3");
 
 	#ifdef _DEBUG_Initialization
 	DebugOut("N\t\t\t", mPubKey->n, idx);
 	DebugOut("N-1\t\t\t", tPre->pN1.m, idx);
 	DebugOut("N-2\t\t\t", tPre->pN2.m, idx);
 	#endif
+//	printf("4");
 
 	// l = 2^(-1) mod N
 	mpz_set_ui(pT.m, 2);			// 임시 변수로서 pN1 이용함.
 	assert(mpz_invert(tPre->pL.m, pT.m, mPubKey->n));
+//	printf("5");
 
 	#ifdef _DEBUG_Initialization
 	DebugOut("l=2^(-1) mod N\t\t", tPre->pL.m, idx);
 	#endif
+//	printf("10");
 
 	// c1 = E(1)
 	mpz_set_ui(pT.m, 1);													// pT=1

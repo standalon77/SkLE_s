@@ -33,8 +33,8 @@
 
 //const int DATA_SQUARE_LENGTH = 12;			// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
 //const int DATA_NUMBER_LENGTH = 5;			// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
-#define DATA_SQUARE_LENGTH 7					// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
-#define DATA_NUMBER_LENGTH 11					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
+#define DATA_SQUARE_LENGTH 9					// (check) l_1 : data 제곱의 비트수 (실제 데이터 길이)
+#define DATA_NUMBER_LENGTH 13					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
 //#define CLAS_NUMBER_LENGTH 4					// (check) l_2 : data 갯수의 비트수 (실제 데이터 길이)
 const int MOD_SIZE = 1024;						// (check) bit
 const int KEY_SIZE = MOD_SIZE/8;				// byte: N
@@ -43,9 +43,9 @@ const int GMP_N_SIZE = MOD_SIZE/64;
 const int HED_SIZE = 5;
 const int HED_LEN  = 3;
 
-const int DATA_NUM = 1728;							// (check)e
-const int DATA_DIMN = 6;							// (check)
-const int CLASS_SIZE= 4;							// (check)		CLAS_NUMBER_LENGTH
+const int DATA_NUM = 8124;							// (check)e
+const int DATA_DIMN = 22;							// (check)
+const int CLASS_SIZE= 2;							// (check)		CLAS_NUMBER_LENGTH
 const int PARAM_K =  1000;							// (check)
 
 const int THREAD1_NUM  = 8;					// (check) Main thread의 개수.
