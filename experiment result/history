@@ -1,0 +1,258 @@
+pjs@pjs-MS-7B48:~$ history
+    1  sudo apt install uim
+    2  sudo add-apt-repository ppa:webupd8team/java
+    3  sudo apt-get update
+    4  sudo apt-get install default-jdk
+    5  sudo apt-get install build-essential
+    6  history
+    7  sudo apt-get install g++ m4 make p7zip
+    8  ls
+    9  cd 다운
+   10  cd 다운로드/
+   11  ls
+   12  cd gmp-6.2.1/
+   13  ls
+   14  history
+   15  ./configure
+   16  make
+   17  make check
+   18  sudo make install
+   19  cd ..
+   20  cd libpaillier-0.8/
+   21  ls
+   22  ./configure 
+   23  make
+   24  make check
+   25  sudo make install
+   26  ifconfig
+   27  ipconfig
+   28  ifconfig
+   29  sudo apt install net-tools
+   30  ifconfig
+   31  cd eclipse
+   32  ls
+   33  cd cpp-2019-06/
+   34  ls
+   35  cd eclipse/
+   36  ls
+   37  pwd
+   38  cd ..
+   39  cd ~
+   40  ls
+   41  cd 바탕화면/
+   42  ㅣㄴ
+   43  ls
+   44  ls -l
+   45  sudo chmod 755 eclipse.desktop 
+   46  ls -l
+   47  cd ~
+   48  ls
+   49  cd eclipse
+   50  cd /home/pjs/eclipse/cpp-2019-06/eclipse
+   51  ls
+   52  ./eclipse 
+   53  sudo vi /usr/bin/eclipse
+   54  sudo gedit /usr/bin/eclipse
+   55  cd ~
+   56  cd 바탕화면/
+   57  ls
+   58  ./eclipse.desktop 
+   59  ls -l
+   60  sudo apt install htop
+   61  htop
+   62  ls
+   63  cd eclipse
+   64  ls
+   65  cd cpp-2019-06/
+   66  ls
+   67  pwd
+   68  cd ~
+   69  ls
+   70  cd 바탕화면/
+   71  ㅣㄴ
+   72  ls
+   73  ls -l
+   74  sudo chmod 777 eclipse.desktop 
+   75  ls
+   76  ls -l
+   77  sudo chmod 777 eclipse.desktop
+   78  ls -l
+   79  cd 바탕화면/
+   80  ls
+   81  ./eclipse.desktop 
+   82  ls -l
+   83  cd 바탕화면/
+   84  ls -l
+   85  cd /home/pjs/eclipse/cpp-2019-06/eclipse
+   86  ls
+   87  ./eclipse 
+   88  ls -l
+   89  pwd
+   90  cd ~
+   91  cd 바탕화면/
+   92  ls
+   93  ls -l
+   94  sudo chmod 777 Eclipse\ 4.desktop 
+   95  ls -l
+   96  ifconfig
+   97  htop
+   98  exit
+   99  ls
+  100  cd 바탕화면/
+  101  ls
+  102  ls -l
+  103  sudo chmod Eclipse\ 4.desktop 777
+  104  chmod --help
+  105  sudo chmod 777 Eclipse\ 4.desktop
+  106  ls -l
+  107  ls
+  108  cd 다운로드/
+  109  ㅣㄴ
+  110  ls
+  111  cd desktop-release-2.0.4/
+  112  ls
+  113  GitHubDesktop-linux-2.0.4-linux1.snap --classic --dangerous
+  114  cd ..
+  115  cd ~/다운로드/
+  116  ls
+  117  GitHubDesktop-linux-2.0.4-linux1.snap --classic --dangerous
+  118  ls
+  119  snap install GitHubDesktop-linux-2.0.4-linux1.snap --classic --dangerous
+  120  wget -qO - https://packagecloud.io/shiftkey/desktop/gpgkey | sudo tee /etc/apt/trusted.gpg.d/shiftkey-desktop.asc > /dev/null
+  121  history
+  122  snap remove github-desktop
+  123  wget -qO - https://packagecloud.io/shiftkey/desktop/gpgkey | sudo tee /etc/apt/trusted.gpg.d/shiftkey-desktop.asc > /dev/null
+  124  sudo sh -c 'echo "deb [arch=amd64] https://packagecloud.io/shiftkey/desktop/any/ any main" > /etc/apt/sources.list.d/packagecloud-shiftky-desktop.list'
+  125  sudo apt-get update
+  126  sudo apt install github-desktop
+  127  sudo apt update
+  128  sudo apt install apt-transport-https ca-certificates curl software-properties-common
+  129  curl -fsSL https://download.sublimetext.com/sublimehq-pub.gpg | sudo apt-key add -
+  130  sudo add-apt-repository "deb https://download.sublimetext.com/ apt/stable/"
+  131  sudo apt update
+  132  sudo apt install sublime-text
+  133  ifconfig
+  134  htop
+  135  ifconfig
+  136  tracert 163.152.11.6
+  137  tracert6 163.152.11.6
+  138  tracer 163.152.11.6
+  139  ifconfig
+  140  history
+  141  restart
+  142  sudo /etc/init.d/networking restart
+  143  ifconfig
+  144  htop
+  145  ifconfig
+  146  htop
+  147  pwd
+  148  ls
+  149  cd eclipse-workspace/
+  150  ls
+  151  cd SkLE_s/
+  152  ls
+  153  cd PPkNNDH
+  154  ls
+  155  cd Release/
+  156  ls
+  157  ./PPkNNDH 
+  158  ./PPkNNDH_5
+  159  ./PPkNNDH_15
+  160  [2021/4/30 16:13:20] 9.00  17.00  155.00  18.00  1.00  4.00  0.00  3 min 24 sec (204.00)  KeySize=1024  k=5  n=1728  th=8,8  
+  161  ./PPkNNDH_15
+  162  ./PPkNNDH_25
+  163  ./PPkNNDH_100
+  164  ./PPkNNDH_400
+  165  cd eclipse-workspace/
+  166  ls
+  167  cd SkLE_s/
+  168  ls
+  169  cd PPkNN
+  170  cd PPkNNDH
+  171  ls
+  172  cd Release/
+  173  ls
+  174  ./PPkNNDH_400
+  175  cd eclipse-workspace/
+  176  ls
+  177  cd SkLE_s/
+  178  ls
+  179  cd PPkNNDH
+  180  ls
+  181  cd Release/
+  182  ls
+  183  ./PPkNNDH_400 
+  184  ./PPkNNDH_700 
+  185  ./PPkNNDH_1000 
+  186  ls
+  187  cd eclipse-workspace/
+  188  ls
+  189  cd SkLE_s/
+  190  ls
+  191  cd PPkNNDH
+  192  cd Release/
+  193  ls
+  194  ./PPkNNDH_1000
+  195  ./D
+  196  ./PPkNNDH/512
+  197  ls
+  198  ./PPkNNDH_512
+  199  ./PPkNNDH_2048
+  200  cd eclipse-workspace/SkLE_s/PPkNNDH/Release/
+  201  ./PPkNNDH_2048 
+  202  ./PPkNNDH_16
+  203  ./PPkNNDH_12
+  204  ./PPkNNDH_8
+  205  ./PPkNNDH_12
+  206  ./PPkNNDH_16
+  207  ./PPkNNDH_4
+  208  ./PPkNNDH_2
+  209  ./PPkNNDH_1
+  210  htop
+  211  cd eclipse-workspace/PPkNNDH/Release/
+  212  ls
+  213  ./PPkNNDH_1
+  214  history
+  215  cd eclipse-workspace/SkLE_s/PPkNNDH/Release/
+  216  cd /
+  217  ls
+  218  cd ~
+  219  ls
+  220  cd eclipse-workspace/SkLE_s/PPkNNDH/Release/
+  221  ls
+  222  ./PPkNNDH_1
+  223  ./PPkNNDH_2
+  224  ./PPkNNDH_1
+  225  ./PPkNNDH_4
+  226  ./PPkNNDH_2000
+  227  ./PPkNNDH_4000
+  228  ./PPkNNDH_2000
+  229  ./PPkNNDH_4000
+  230  ./PPkNNDH_2000
+  231  history
+  232  cd eclipse-workspace/SkLE_s/PPkNNDH/Release/
+  233  ls
+  234  ./PPkNNDH_2000
+  235  ./PPkNNDH_4000
+  236  cd ..
+  237  cd Release/
+  238  ./PPkNNDH_4000
+  239  ./PPkNNDH
+  240  ./PPkNNDH_4000
+  241  ./PPkNNDH_2000
+  242  ./PPkNNDH_6000
+  243  grep -c processor /proc/cpuinfo
+  244  grep ^processor /proc/cpuinfo | wc -l
+  245  dmidecode -t processor | grep 'Socket Designation'
+  246  su dmidecode -t processor | grep 'Socket Designation'
+  247  dmidecode -t processor | grep 'Socket Designation'
+  248  grep ^processor /proc/cpuinfo | wc -l
+  249  dmidecode -t processor | grep 'Socket Designation'
+  250  grep 'cpu cores' /proc/cpuinfo | tail -1
+  251  grep -c processor /proc/cpuinfo
+  252  grep ^processor /proc/cpuinfo | wc -l
+  253  grep 'cpu cores' /proc/cpuinfo | tail -1
+  254  htop
+  255  history
+pjs@pjs-MS-7B48:~$ 
+
